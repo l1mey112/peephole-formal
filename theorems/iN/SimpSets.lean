@@ -6,6 +6,6 @@ open Lean Meta
   registerSimpAttr `iN_unwrap_inst
     "simp lemmas unwrapping instructions" -/
 
-initialize iNInst : SimpExtension ←
+initialize simpIN : SimpExtension ←
   registerSimpAttr `simp_iN
     "simp lemmas unwrapping instructions"

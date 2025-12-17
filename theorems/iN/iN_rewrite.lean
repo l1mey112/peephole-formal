@@ -41,7 +41,7 @@ theorem not_bitvec_poision_rewrite {n} (a : BitVec n)
   cases h
 
 @[simp]
-theorem rewrite_poison_iff {n} {x : iN n}
+theorem rewrite_poison_eq_poison {n} {x : iN n}
     : (x ~> poison) ↔ (x = poison) := by
 
   constructor
@@ -91,8 +91,15 @@ theorem congrApp {n} (f : iN n → iN n)
     exact poison_rewrite (f (bitvec v))
 
 @[grind]
-theorem eq_rewrite {n} {x y : iN n}
+theorem eq_implies_rewriteIff {n} (x y : iN n)
     : (x = y) → (x <~> y) := by
+
+  intro h
+  rw [h]
+
+@[grind]
+theorem eq_implies_rewrite {n} (x y : iN n)
+    : (x = y) → x ~> y := by
 
   intro h
   rw [h]

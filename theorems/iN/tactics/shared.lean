@@ -284,7 +284,7 @@ def proveCongruence (motive : Expr) (n : Expr) : MetaM Expr := do
 
   let ctx ← Simp.mkContext
     (config := { beta := true })
-    (simpTheorems := #[← getSimpTheorems, ← iNInst.getTheorems])
+    (simpTheorems := #[← getSimpTheorems, ← simpIN.getTheorems])
     (congrTheorems := (← getSimpCongrTheorems))
   let (result?, _) ← simpGoal proofMVar.mvarId! ctx
 
