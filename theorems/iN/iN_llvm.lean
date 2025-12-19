@@ -304,6 +304,19 @@ infixl:70 " /ₛ " => iN.sdiv
 
 end iN
 
+/- this gets in the way of manual proof on nested instructions -/
+/- section simp_bitvec_iN
+@[simp] theorem bitvec_add_bitvec_eq (a b : BitVec n) : (bitvec a) + (bitvec b) = iN.add? a b := rfl
+@[simp] theorem bitvec_addNsw_bitvec_eq (a b : BitVec n) : (bitvec a) +nsw (bitvec b) = iN.addNsw? a b := rfl
+@[simp] theorem bitvec_addNuw_bitvec_eq (a b : BitVec n) : (bitvec a) +nuw (bitvec b) = iN.addNuw? a b := rfl
+@[simp] theorem bitvec_addNw_bitvec_eq (a b : BitVec n) : (bitvec a) +nw (bitvec b) = iN.addNw? a b := rfl
+@[simp] theorem bitvec_sub_bitvec_eq (a b : BitVec n) : (bitvec a) - (bitvec b) = iN.sub? a b := rfl
+@[simp] theorem bitvec_subNsw_bitvec_eq (a b : BitVec n) : (bitvec a) -nsw (bitvec b) = iN.subNsw? a b := rfl
+@[simp] theorem bitvec_subNuw_bitvec_eq (a b : BitVec n) : (bitvec a) -nuw (bitvec b) = iN.subNuw? a b := rfl
+@[simp] theorem bitvec_subNw_bitvec_eq (a b : BitVec n) : (bitvec a) -nw (bitvec b) = iN.subNw? a b := rfl
+/- TODO -/
+end simp_bitvec_iN -/
+
 section norm_eqs_simp_iN
 /-! When using simp_iN, these simp-lemmas rewrite the notation into back into iN, so they can be lowered -/
 @[simp_iN] theorem bitvec_icmpEq_eq (x y : iN n) : (x ==ᵤ y) = iN.icmpEq x y := rfl

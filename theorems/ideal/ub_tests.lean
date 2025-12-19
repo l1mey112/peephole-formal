@@ -2,27 +2,24 @@ import theorems.iN
 
 /-
 
+theorem addNsw_assoc_same_sign {n} (x y z : iN n)
+    (h :
+      (x ≥ₛ 0) &&& (y ≥ₛ 0) &&& (z ≥ₛ 0) ~> 1 ∨
+      (x <ₛ 0) &&& (y <ₛ 0) &&& (z <ₛ 0) ~> 1)
 
-∀ (x : iN n), f x ~> g x → ∀ (x y : BitVec n), f x = g x
+    : (x +nsw y) +nsw z <~> x +nsw (y +nsw z) := by
 
-
-(well formedness)
-- f x != poison for x != poison
-- g x != poison for x != poison
-
-  => f, g doesn't introduce MORE UB
-
----------------------------------------------
-
-(UB equivalent)
-- f x = poison ↔ g x = poison
+  sorry
 
 
- -/
+theorem addNsw_assoc_all_pos {n} (x y z : iN n)
+    (hx : x ∈ [0,-])
+    (hy : y ∈ [0,-])
+    (hz : z ∈ [0,-])
 
+    : (x +nsw y) +nsw z <~> x +nsw (y +nsw z) := by
 
-/-
-
+  sorry
 
 f x
 
