@@ -14,7 +14,7 @@ macro_rules
       | bitvec $ys:ident => ?_
       | poison => simp [simp_iN]];*);
 
-      simp at * /- simp hypotheses with bitvec -/
+      try simp at * /- simp hypotheses with bitvec -/
     )
 
 theorem BitVec.saddOverflow_comm {n} {a b : BitVec n}
@@ -27,7 +27,6 @@ theorem BitVec.uaddOverflow_comm {n} {a b : BitVec n}
 
   grind [BitVec.uaddOverflow]
 
-
 theorem saddOverflow_iff_or {n} (x y : BitVec n)
     : x.saddOverflow y
       ↔ x.toInt + y.toInt ≥ 2 ^ (n - 1) ∨ x.toInt + y.toInt < - 2 ^ (n - 1) := by
@@ -36,6 +35,43 @@ theorem saddOverflow_iff_or {n} (x y : BitVec n)
   rw [← Bool.decide_or]
   rw [decide_eq_true_eq]
 
+@[simp]
+theorem saddOverflow_zero {n} (x : BitVec n)
+    : x.saddOverflow 0#n = false := by
+
+  unfold BitVec.saddOverflow
+  rw [← Bool.decide_or, decide_eq_false]
+  simp
+  constructor
+  . exact BitVec.toInt_lt
+  . exact BitVec.le_toInt x
+
+@[simp]
+theorem uaddOverflow_zero {n} (x : BitVec n)
+    : x.uaddOverflow 0#n = false := by
+
+  unfold BitVec.uaddOverflow
+  rw [decide_eq_false]
+  simp
+  exact BitVec.isLt x
+
+@[simp]
+theorem ssubOverflow_zero {n} (x : BitVec n)
+    : x.ssubOverflow 0#n = false := by
+
+  unfold BitVec.ssubOverflow
+  rw [decide_eq_false]
+  simp
+  . exact BitVec.le_toInt x
+  . simp; exact BitVec.toInt_lt
+
+@[simp]
+theorem usubOverflow_zero {n} (x : BitVec n)
+    : x.usubOverflow 0#n = false := by
+
+  unfold BitVec.usubOverflow
+  rw [decide_eq_false]
+  simp
 
 theorem addNsw_saddOverflow_bitvec {n} {a b : BitVec n} (h : a.saddOverflow b)
     : (bitvec a) +nsw (bitvec b) = poison := by

@@ -198,9 +198,8 @@ def validateOptTheorem (type : Expr) : MetaM Unit := do
 
     match_expr (← whnf body) with
     | Rewrite _ _ _ => pure ()
-    | RewriteIff _ _ _ => pure ()
     | _ =>
-      throwError "expected `~>` or `<~>` expression"
+      throwError "expected `~>` expression"
 
 initialize optAttr : Unit ←
   registerBuiltinAttribute {
@@ -263,7 +262,6 @@ def getOptTheorems : MetaM OptTheorems := do
 
     let keys ← match_expr type with
     | Rewrite _ lhs _ => DiscrTree.mkPath lhs false
-    | RewriteIff _ lhs _ => DiscrTree.mkPath lhs false
     | _ => unreachable!
 
     optTheorems := optTheorems.insertCore keys t

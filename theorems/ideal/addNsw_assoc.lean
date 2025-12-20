@@ -41,7 +41,7 @@ theorem addNsw_assoc_same_sign {n} {x y z : iN n}
     (hxyz : x ∈ i[0,∞]  ∧ y ∈ i[0,∞]  ∧ z ∈ i[0,∞]
           ∨ x ∈ i[-∞,0] ∧ y ∈ i[-∞,0] ∧ z ∈ i[-∞,0])
 
-    : (x +nsw y) +nsw z <~> x +nsw (y +nsw z) := by
+    : (x +nsw y) +nsw z = x +nsw (y +nsw z) := by
 
   poison_unroll x y z => a b c
 
@@ -92,16 +92,17 @@ theorem addNsw_assoc_same_sign {n} {x y z : iN n}
       constructor
       . simp [BitVec.saddOverflow_assoc hab hbc]
       . intro h
-        simp [BitVec.saddOverflow_assoc hab hbc, h]
+        rw [← BitVec.saddOverflow_assoc hab hbc]
+        simp [h]
         /- ⊢ a + (b + c) = a + b + c -/
-        exact (Eq.symm $ BitVec.add_assoc a b c)
+        exact BitVec.add_assoc a b c
 
 theorem addNsw_assoc_all_pos {n} {x y z : iN n}
     (hx : x ∈ i[0,∞])
     (hy : y ∈ i[0,∞])
     (hz : z ∈ i[0,∞])
 
-    : (x +nsw y) +nsw z <~> x +nsw (y +nsw z) := by
+    : (x +nsw y) +nsw z = x +nsw (y +nsw z) := by
 
   exact addNsw_assoc_same_sign (Or.inl ⟨hx, hy, hz⟩)
 
@@ -110,6 +111,6 @@ theorem addNsw_assoc_all_neg {n} {x y z : iN n}
     (hy : y ∈ i[-∞,0])
     (hz : z ∈ i[-∞,0])
 
-    : (x +nsw y) +nsw z <~> x +nsw (y +nsw z) := by
+    : (x +nsw y) +nsw z = x +nsw (y +nsw z) := by
 
   exact addNsw_assoc_same_sign (Or.inr ⟨hx, hy, hz⟩)
