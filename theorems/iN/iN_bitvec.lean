@@ -4,8 +4,8 @@ import theorems.iN.iN_llvm
 /-- `poison_unroll x y z => a b c`
 
 Performs `cases x; cases y; cases z`, solves every `poison` branch with
-`simp [iN_unwrap_inst]`, and in the unique `bitvec` branch introduces the
-payloads named `a b c`. -/
+`simp [simp_iN]`, and in the unique `bitvec` branch introduces the
+variables named `a b c`. -/
 syntax "poison_unroll" (ppSpace colGt ident)* " =>" (ppSpace colGt ident)* : tactic
 macro_rules
 | `(tactic| poison_unroll $xs:ident* => $ys:ident*) =>

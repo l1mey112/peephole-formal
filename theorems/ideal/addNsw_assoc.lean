@@ -1,6 +1,6 @@
 import theorems.iN
 
-theorem saddOverflow_pos_implies_sum {n} {a b c : BitVec n}
+theorem saddOverflow_same_sign_implies_sum {n} {a b c : BitVec n}
   (hxyz : 0 ≤ a.toInt ∧ 0 ≤ b.toInt ∧ 0 ≤ c.toInt
     ∨ a.toInt ≤ 0 ∧ b.toInt ≤ 0 ∧ c.toInt ≤ 0)
 
@@ -31,8 +31,8 @@ theorem saddOverflow_pos_implies_sum {n} {a b c : BitVec n}
     obtain habl | habr := hab;
     . /- contradiction, by assumption -/
       have upper_bound_gt_1 : a.toInt + b.toInt ≥ 1 := by
-        calc 1
-          ≤ 2 ^ (n - 1)         := by exact_mod_cast Nat.one_le_two_pow
+        calc
+          1 ≤ 2 ^ (n - 1)         := by exact_mod_cast Nat.one_le_two_pow
           _ ≤ a.toInt + b.toInt := habl
       omega
     . omega
@@ -56,7 +56,7 @@ theorem addNsw_assoc_same_sign {n} {x y z : iN n}
 
     /- b + c no overflow => a + (b + c) overflows -/
     intro hbc
-    exact saddOverflow_pos_implies_sum hxyz hab hbc
+    exact saddOverflow_same_sign_implies_sum hxyz hab hbc
 
   case neg =>
     by_cases hbc : (b.saddOverflow c)
@@ -75,7 +75,7 @@ theorem addNsw_assoc_same_sign {n} {x y z : iN n}
       rw [BitVec.saddOverflow_comm] at hbc
       rw [BitVec.saddOverflow_comm] at hab
 
-      refine saddOverflow_pos_implies_sum ?_ hbc hab
+      refine saddOverflow_same_sign_implies_sum ?_ hbc hab
       /- get hxyz in the right order -/
       ac_nf at *
 
