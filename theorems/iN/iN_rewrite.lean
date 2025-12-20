@@ -63,6 +63,9 @@ theorem trans {n} {x y z : iN n}
   case poison_forge v =>
     exact poison_rewrite z
 
+instance {n} : Trans (@Rewrite n) (@Rewrite n) (@Rewrite n) where
+  trans := trans
+
 /--
 Rewrite congruence. Even though no instruction should be able to
 "observe" poison, `wf` must still be an assumption.
@@ -160,8 +163,10 @@ theorem rewrite_forward_back_implies_eq {n} {a b : iN n}
     (h₁ : a ~> b) (h₂ : b ~> a)
     : a = b := by
 
-  refine rewriteIff_iff_eq.mp ?_
-  exact ⟨h₁, h₂⟩
+  exact rewriteIff_iff_eq.mp ⟨h₁, h₂⟩
+
+instance {n} : @Std.Antisymm (iN n) (@Rewrite n) where
+  antisymm := @rewrite_forward_back_implies_eq n
 
 @[simp]
 theorem if_then_poison_rewrite_iff {n} (c : Prop) [Decidable c] (x y : iN n)
