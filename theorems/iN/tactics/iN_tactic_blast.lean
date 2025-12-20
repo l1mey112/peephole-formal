@@ -88,16 +88,3 @@ macro_rules
           blast_bv
     )
   )
-
-/-- `poison_unroll x y z => a b c`
-
-Performs `cases x; cases y; cases z`, solves every `poison` branch with
-`simp [iN_unwrap_inst]`, and in the unique `bitvec` branch introduces the
-payloads named `a b c`. -/
-syntax "poison_unroll" (ppSpace colGt ident)* " =>" (ppSpace colGt ident)* : tactic
-macro_rules
-| `(tactic| poison_unroll $xs:ident* => $ys:ident*) =>
-  `(tactic|
-    ($[cases $xs:ident with
-      | bitvec $ys:ident => ?_
-      | poison => simp [simp_iN]];*))

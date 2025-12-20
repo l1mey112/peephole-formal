@@ -1,147 +1,85 @@
 import theorems.iN
 
-structure Interval (bits : Nat) : Type where
-  lo : BitVec bits /- signed -/
-  hi : BitVec bits /- signed -/
-
-def Interval.mem {n} (int : Interval n) : iN n → Prop
-  | poison => True
-  | bitvec a => int.lo.toInt ≤ a.toInt ∧ a.toInt ≤ int.hi.toInt
-
-/- instance instMembe {n} : Membership (iN n) (Interval n) where
-  mem := Interval.mem -/
-
-/- TODO instance actually unwrapping to the thing fix  -/
-notation:50 a:50 " ∈ " b:50 => Interval.mem b a
-
-@[simp]
-theorem Interval.bitvec_mem_ineq {n} (a : BitVec n) (int : Interval n)
-    : bitvec a ∈ int ↔ int.lo.toInt ≤ a.toInt ∧ a.toInt ≤ int.hi.toInt := by
-
-  constructor
-  . intro h
-    unfold Interval.mem at h
-    simp [h]
-  . intro h
-    unfold Interval.mem
-    simp [h]
-
-/- decide p || decide q ↔ p ∨ q -/
-
-@[simp]
-theorem toInt_le_intMax {n} (a : BitVec n)
-  : a.toInt ≤ 2 ^ (n - 1) - 1 := by
-
-  /- a.toInt ≤ BitVec.intMax -/
-
-  /- split
-  rename_i h -/
-  sorry
-
-@[simp]
-theorem addNsw_saddOverflow_bitvec {n} {a b : BitVec n} (h : a.saddOverflow b)
-    : (bitvec a) +nsw (bitvec b) = poison := by
-
-  simp [simp_iN, h]
-
-@[simp]
-theorem addNsw_not_saddOverflow_bitvec_eq_add {n} {a b : BitVec n} (h : ¬a.saddOverflow b)
-    : (bitvec a) +nsw (bitvec b) = bitvec (a + b) := by
-
-  simp [simp_iN, h]
-
-theorem saddOverflow_iff_or {n} (x y : BitVec n)
-    : x.saddOverflow y
-      ↔ x.toInt + y.toInt ≥ 2 ^ (n - 1) ∨ x.toInt + y.toInt < - 2 ^ (n - 1) := by
-
-  unfold BitVec.saddOverflow
-  rw [← Bool.decide_or]
-  rw [decide_eq_true_eq]
-
 theorem saddOverflow_pos_implies_sum {n} {a b c : BitVec n}
-  (hx : 0 ≤ a.toInt) (hy : 0 ≤ b.toInt) (hz : 0 ≤ c.toInt)
+  (hxyz : 0 ≤ a.toInt ∧ 0 ≤ b.toInt ∧ 0 ≤ c.toInt
+    ∨ a.toInt ≤ 0 ∧ b.toInt ≤ 0 ∧ c.toInt ≤ 0)
+
   (hab : a.saddOverflow b)
-  (hbc : ¬b.saddOverflow c)
+  (hbc : b.saddOverflow c = false)
   : a.saddOverflow (b + c) := by
 
   /- (b + c).toInt ≥ b.toInt -/
 
-  have h : (b + c).toInt ≥ b.toInt := by
-    rw [BitVec.toInt_add_of_not_saddOverflow hbc]
-    omega
+  have hbc' : ¬b.saddOverflow c := by simp [hbc]
 
-  rw [saddOverflow_iff_or]
-  left
+  cases hxyz
+  . have h : (b + c).toInt ≥ b.toInt := by
+      rw [BitVec.toInt_add_of_not_saddOverflow hbc']
+      omega
 
-  rw [saddOverflow_iff_or] at hab
-  /- want to combine hab with h -/
-  obtain habl | habr := hab
-  <;> omega
+    rw [saddOverflow_iff_or]; left
+    rw [saddOverflow_iff_or] at hab
+    obtain habl | habr := hab <;> omega
 
-theorem BitVec.saddOverflow_comm {n} {a b : BitVec n}
-    : a.saddOverflow b = b.saddOverflow a := by
+  . have h : (b + c).toInt ≤ b.toInt := by
+      rw [BitVec.toInt_add_of_not_saddOverflow hbc']
+      omega
 
-  grind [BitVec.saddOverflow]
+    rw [saddOverflow_iff_or]; right
+    rw [saddOverflow_iff_or] at hab
 
-theorem bool_eq_false_iff_not {b : Bool}
-    : b = false ↔ ¬b := by
+    obtain habl | habr := hab;
+    . /- contradiction, by assumption -/
+      have upper_bound_gt_1 : a.toInt + b.toInt ≥ 1 := by
+        calc 1
+          ≤ 2 ^ (n - 1)         := by exact_mod_cast Nat.one_le_two_pow
+          _ ≤ a.toInt + b.toInt := habl
+      omega
+    . omega
 
-  simp
-
-theorem addNsw_assoc_all_pos {n} (x y z : iN n)
-    (hx : x ∈ (⟨0, BitVec.intMax n⟩ : Interval n))
-    (hy : y ∈ (⟨0, BitVec.intMax n⟩ : Interval n))
-    (hz : z ∈ (⟨0, BitVec.intMax n⟩ : Interval n))
+theorem addNsw_assoc_same_sign {n} {x y z : iN n}
+    (hxyz : x ∈ i[0,∞]  ∧ y ∈ i[0,∞]  ∧ z ∈ i[0,∞]
+          ∨ x ∈ i[-∞,0] ∧ y ∈ i[-∞,0] ∧ z ∈ i[-∞,0])
 
     : (x +nsw y) +nsw z <~> x +nsw (y +nsw z) := by
 
-  cases x
-  case poison => simp [simp_iN]
-  case bitvec a =>
-  cases y
-  case poison => simp [simp_iN]
-  case bitvec b =>
-  cases z
-  case poison => simp [simp_iN]
-  case bitvec c =>
-
-  simp_all
+  poison_unroll x y z => a b c
 
   /- case 1. (a + b) + c overflow ↔ a + (b + c) overflow -/
   /- case 2. none of them overflow -/
 
   by_cases hab : (a.saddOverflow b)
   case pos =>
+    /- overflow => poison -/
     rw [addNsw_saddOverflow_bitvec hab]
     simp [simp_iN]
+
     /- b + c no overflow => a + (b + c) overflows -/
     intro hbc
-
-    rw [bool_eq_false_iff_not] at hbc
-    exact saddOverflow_pos_implies_sum hx hy hz hab hbc
+    exact saddOverflow_pos_implies_sum hxyz hab hbc
 
   case neg =>
     by_cases hbc : (b.saddOverflow c)
     case pos =>
       rw [addNsw_saddOverflow_bitvec hbc]
-      simp [simp_iN]
-
+      simp at hab
+      simp [simp_iN, hab]
       /- a + b no overflow => (a + b) + c overflows -/
-      intro hab
-      rw [bool_eq_false_iff_not] at hab
+      /- ⊢ (a + b).saddOverflow c = true -/
+
       rw [BitVec.saddOverflow_comm]
       rw [BitVec.add_comm]
-
       /- ⊢ c.saddOverflow (b + a) = true -/
 
+      /- hcb, hba (reverse them) -/
       rw [BitVec.saddOverflow_comm] at hbc
       rw [BitVec.saddOverflow_comm] at hab
-      /- hcb, hba (reverse them) -/
 
-      exact saddOverflow_pos_implies_sum hz hy hx hbc hab
+      refine saddOverflow_pos_implies_sum ?_ hbc hab
+      /- get hxyz in the right order -/
+      ac_nf at *
 
     case neg =>
-
       /-
       case 2.
         hab : ¬a.saddOverflow b
@@ -150,16 +88,28 @@ theorem addNsw_assoc_all_pos {n} (x y z : iN n)
       rw [addNsw_not_saddOverflow_bitvec_eq_add hab]
       rw [addNsw_not_saddOverflow_bitvec_eq_add hbc]
 
-      simp [simp_iN] /- TODO incredibly brittle -/
+      simp [simp_iN]
       constructor
-      . /- a.saddOverflow (b + c) = true → (a + b).saddOverflow c = true -/
-        simp [BitVec.saddOverflow_assoc hab hbc]
-
+      . simp [BitVec.saddOverflow_assoc hab hbc]
       . intro h
-        simp [BitVec.saddOverflow_assoc hab hbc]
-
-        constructor
-        . exact h
-
-        intro _
+        simp [BitVec.saddOverflow_assoc hab hbc, h]
+        /- ⊢ a + (b + c) = a + b + c -/
         exact (Eq.symm $ BitVec.add_assoc a b c)
+
+theorem addNsw_assoc_all_pos {n} {x y z : iN n}
+    (hx : x ∈ i[0,∞])
+    (hy : y ∈ i[0,∞])
+    (hz : z ∈ i[0,∞])
+
+    : (x +nsw y) +nsw z <~> x +nsw (y +nsw z) := by
+
+  exact addNsw_assoc_same_sign (Or.inl ⟨hx, hy, hz⟩)
+
+theorem addNsw_assoc_all_neg {n} {x y z : iN n}
+    (hx : x ∈ i[-∞,0])
+    (hy : y ∈ i[-∞,0])
+    (hz : z ∈ i[-∞,0])
+
+    : (x +nsw y) +nsw z <~> x +nsw (y +nsw z) := by
+
+  exact addNsw_assoc_same_sign (Or.inr ⟨hx, hy, hz⟩)
