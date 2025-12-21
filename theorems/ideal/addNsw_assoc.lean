@@ -17,22 +17,20 @@ theorem saddOverflow_same_sign_implies_sum {n} {a b c : BitVec n}
       rw [BitVec.toInt_add_of_not_saddOverflow hbc']
       omega
 
-    rw [saddOverflow_iff_or]; left
-    rw [saddOverflow_iff_or] at hab
+    rw [saddOverflow_iff_or_unfold] at ⊢ hab; left
     obtain habl | habr := hab <;> omega
 
   . have h : (b + c).toInt ≤ b.toInt := by
       rw [BitVec.toInt_add_of_not_saddOverflow hbc']
       omega
 
-    rw [saddOverflow_iff_or]; right
-    rw [saddOverflow_iff_or] at hab
+    rw [saddOverflow_iff_or_unfold] at ⊢ hab; right
 
     obtain habl | habr := hab;
     . /- contradiction, by assumption -/
       have upper_bound_gt_1 : a.toInt + b.toInt ≥ 1 := by
         calc
-          1 ≤ 2 ^ (n - 1)         := by exact_mod_cast Nat.one_le_two_pow
+          1 ≤ 2 ^ (n - 1)       := by exact_mod_cast Nat.one_le_two_pow
           _ ≤ a.toInt + b.toInt := habl
       omega
     . omega
@@ -72,12 +70,11 @@ theorem addNsw_assoc_same_sign {n} {x y z : iN n}
       /- ⊢ c.saddOverflow (b + a) = true -/
 
       /- hcb, hba (reverse them) -/
-      rw [BitVec.saddOverflow_comm] at hbc
-      rw [BitVec.saddOverflow_comm] at hab
+      rw [BitVec.saddOverflow_comm] at hab hbc
 
       refine saddOverflow_same_sign_implies_sum ?_ hbc hab
       /- get hxyz in the right order -/
-      ac_nf at *
+      ac_nf at ⊢ hxyz
 
     case neg =>
       /-

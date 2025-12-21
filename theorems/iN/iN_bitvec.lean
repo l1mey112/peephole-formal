@@ -27,13 +27,20 @@ theorem BitVec.uaddOverflow_comm {n} {a b : BitVec n}
 
   grind [BitVec.uaddOverflow]
 
-theorem saddOverflow_iff_or {n} (x y : BitVec n)
+theorem saddOverflow_iff_or_unfold {n} (x y : BitVec n)
     : x.saddOverflow y
       ↔ x.toInt + y.toInt ≥ 2 ^ (n - 1) ∨ x.toInt + y.toInt < - 2 ^ (n - 1) := by
 
   unfold BitVec.saddOverflow
   rw [← Bool.decide_or]
-  rw [decide_eq_true_eq]
+  exact decide_eq_true_iff
+
+theorem uaddOverflow_iff_unfold {n} (x y : BitVec n)
+    : x.uaddOverflow y
+      ↔ x.toNat + y.toNat ≥ 2 ^ n := by
+
+  unfold BitVec.uaddOverflow
+  exact decide_eq_true_iff
 
 @[simp]
 theorem saddOverflow_zero {n} (x : BitVec n)
@@ -80,5 +87,15 @@ theorem addNsw_saddOverflow_bitvec {n} {a b : BitVec n} (h : a.saddOverflow b)
 
 theorem addNsw_not_saddOverflow_bitvec_eq_add {n} {a b : BitVec n} (h : ¬a.saddOverflow b)
     : (bitvec a) +nsw (bitvec b) = bitvec (a + b) := by
+
+  simp [simp_iN, h]
+
+theorem addNuw_uaddOverflow_bitvec {n} {a b : BitVec n} (h : a.uaddOverflow b)
+    : (bitvec a) +nuw (bitvec b) = poison := by
+
+  simp [simp_iN, h]
+
+theorem addNuw_not_uaddOverflow_bitvec_eq_add {n} {a b : BitVec n} (h : ¬a.uaddOverflow b)
+    : (bitvec a) +nuw (bitvec b) = bitvec (a + b) := by
 
   simp [simp_iN, h]

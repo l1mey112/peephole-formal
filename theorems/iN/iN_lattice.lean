@@ -15,7 +15,7 @@ def Interval.mem {n} (int : Interval n) : iN n → Prop
 notation:50 a:50 " ∈ " b:50 => Interval.mem b a
 
 syntax:100 "i[" term ",∞]" : term
-syntax:100 "i[-∞," term "]" : term
+syntax:100 "i[" "-∞," term "]" : term
 syntax:100 "i[" term "," term "]" : term
 
 macro_rules
