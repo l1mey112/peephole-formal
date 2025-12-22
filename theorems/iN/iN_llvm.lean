@@ -305,17 +305,40 @@ infixl:70 " /ₛ " => iN.sdiv
 end iN
 
 /- this gets in the way of manual proof on nested instructions -/
-/- section simp_bitvec_iN
-@[simp] theorem bitvec_add_bitvec_eq (a b : BitVec n) : (bitvec a) + (bitvec b) = iN.add? a b := rfl
-@[simp] theorem bitvec_addNsw_bitvec_eq (a b : BitVec n) : (bitvec a) +nsw (bitvec b) = iN.addNsw? a b := rfl
-@[simp] theorem bitvec_addNuw_bitvec_eq (a b : BitVec n) : (bitvec a) +nuw (bitvec b) = iN.addNuw? a b := rfl
-@[simp] theorem bitvec_addNw_bitvec_eq (a b : BitVec n) : (bitvec a) +nw (bitvec b) = iN.addNw? a b := rfl
-@[simp] theorem bitvec_sub_bitvec_eq (a b : BitVec n) : (bitvec a) - (bitvec b) = iN.sub? a b := rfl
-@[simp] theorem bitvec_subNsw_bitvec_eq (a b : BitVec n) : (bitvec a) -nsw (bitvec b) = iN.subNsw? a b := rfl
-@[simp] theorem bitvec_subNuw_bitvec_eq (a b : BitVec n) : (bitvec a) -nuw (bitvec b) = iN.subNuw? a b := rfl
-@[simp] theorem bitvec_subNw_bitvec_eq (a b : BitVec n) : (bitvec a) -nw (bitvec b) = iN.subNw? a b := rfl
-/- TODO -/
-end simp_bitvec_iN -/
+/- TODO: see `bitvec_arguments : tactic` -/
+section simp_bitvec_iN
+/- @[simp_iN_bitvec] theorem bitvec_add_bitvec_eq (a b : BitVec n) : (bitvec a) + (bitvec b) = bitvec (a + b) := rfl
+@[simp_iN_bitvec] theorem bitvec_addNsw_bitvec_eq (a b : BitVec n) : (bitvec a) +nsw (bitvec b) = if BitVec.saddOverflow a b then poison else bitvec (a + b) := rfl
+@[simp_iN_bitvec] theorem bitvec_addNuw_bitvec_eq (a b : BitVec n) : (bitvec a) +nuw (bitvec b) = if BitVec.uaddOverflow a b then poison else bitvec (a + b) := rfl
+@[simp_iN_bitvec] theorem bitvec_addNw_bitvec_eq (a b : BitVec n) : (bitvec a) +nw (bitvec b) = if BitVec.saddOverflow a b then poison else if BitVec.uaddOverflow a b then poison else bitvec (a + b) := rfl
+@[simp_iN_bitvec] theorem bitvec_sub_bitvec_eq (a b : BitVec n) : (bitvec a) - (bitvec b) = bitvec (a - b) := rfl
+@[simp_iN_bitvec] theorem bitvec_subNsw_bitvec_eq (a b : BitVec n) : (bitvec a) -nsw (bitvec b) = if BitVec.ssubOverflow a b then poison else bitvec (a - b) := rfl
+@[simp_iN_bitvec] theorem bitvec_subNuw_bitvec_eq (a b : BitVec n) : (bitvec a) -nuw (bitvec b) = if BitVec.usubOverflow a b then poison else bitvec (a - b) := rfl
+@[simp_iN_bitvec] theorem bitvec_subNw_bitvec_eq (a b : BitVec n) : (bitvec a) -nw (bitvec b) = if BitVec.ssubOverflow a b then poison else if BitVec.usubOverflow a b then poison else bitvec (a - b) := rfl
+@[simp_iN_bitvec] theorem bitvec_and_bitvec_eq (a b : BitVec n) : (bitvec a) &&& (bitvec b) = bitvec (a &&& b) := rfl
+@[simp_iN_bitvec] theorem bitvec_or_bitvec_eq (a b : BitVec n) : (bitvec a) ||| (bitvec b) = bitvec (a ||| b) := rfl
+@[simp_iN_bitvec] theorem bitvec_not_bitvec_eq (a : BitVec n) : ~~~(bitvec a) = bitvec (~~~a) := rfl
+@[simp_iN_bitvec] theorem bitvec_xor_bitvec_eq (a b : BitVec n) : (bitvec a) ^^^ (bitvec b) = bitvec (a ^^^ b) := rfl
+@[simp_iN_bitvec] theorem bitvec_shl_bitvec_eq (a b : BitVec n) : (bitvec a) <<< (bitvec b) = if n == 0 then 0 else if b >= n then poison else bitvec (a <<< b) := rfl
+@[simp_iN_bitvec] theorem bitvec_shlNsw_bitvec_eq (a b : BitVec n) : (bitvec a) <<<nsw (bitvec b) = if n == 0 then 0 else if ((a <<< b).sshiftRight' b ≠ a) then poison else if b >= n then poison else bitvec (a <<< b) := rfl
+@[simp_iN_bitvec] theorem bitvec_shlNuw_bitvec_eq (a b : BitVec n) : (bitvec a) <<<nuw (bitvec b) = if n == 0 then 0 else if ((a <<< b) >>> b ≠ a) then poison else if b >= n then poison else bitvec (a <<< b) := rfl
+@[simp_iN_bitvec] theorem bitvec_lshr_bitvec_eq (a b : BitVec n) : (bitvec a) >>>ᵤ (bitvec b) = if n == 0 then 0 else if b >= n then poison else bitvec (a >>> b) := rfl
+@[simp_iN_bitvec] theorem bitvec_lshrExact_bitvec_eq (a b : BitVec n) : (bitvec a) >>>ᵤexact (bitvec b) = if n == 0 then 0 else if b >= n then poison else if (a <<< b) >>> b ≠ a then poison else bitvec (a >>> b) := rfl
+@[simp_iN_bitvec] theorem bitvec_ashr_bitvec_eq (a b : BitVec n) : (bitvec a) >>>ₛ (bitvec b) = if n == 0 then 0 else if b >= n then poison else bitvec (a.sshiftRight' b) := rfl
+@[simp_iN_bitvec] theorem bitvec_ashrExact_bitvec_eq (a b : BitVec n) : (bitvec a) >>>ₛexact (bitvec b) = if n == 0 then 0 else if b >= n then poison else if (a >>> b) <<< b ≠ a then poison else bitvec (a.sshiftRight' b) := rfl
+@[simp_iN_bitvec] theorem bitvec_sdiv_bitvec_eq (a b : BitVec n) : (bitvec a) /ₛ (bitvec b) = if b == 0 then poison else if b == -1 && a == BitVec.intMin n then poison else bitvec (a.sdiv b) := rfl -/
+
+@[simp_iN_bitvec] theorem bitvec_icmpEq_bitvec_eq (a b : BitVec n) : (bitvec a ==ᵤ bitvec b) = bitvec (if a == b then 1 else 0) := rfl
+@[simp_iN_bitvec] theorem bitvec_icmpNe_bitvec_eq (a b : BitVec n) : (bitvec a !=ᵤ bitvec b) = bitvec (if a != b then 1 else 0) := rfl
+@[simp_iN_bitvec] theorem bitvec_icmpUlt_bitvec_eq (a b : BitVec n) : (bitvec a <ᵤ bitvec b) = bitvec (if a < b then 1 else 0) := rfl
+@[simp_iN_bitvec] theorem bitvec_icmpUle_bitvec_eq (a b : BitVec n) : (bitvec a ≤ᵤ bitvec b) = bitvec (if a <= b then 1 else 0) := rfl
+@[simp_iN_bitvec] theorem bitvec_icmpUgt_bitvec_eq (a b : BitVec n) : (bitvec a >ᵤ bitvec b) = bitvec (if a > b then 1 else 0) := rfl
+@[simp_iN_bitvec] theorem bitvec_icmpUge_bitvec_eq (a b : BitVec n) : (bitvec a ≥ᵤ bitvec b) = bitvec (if a >= b then 1 else 0) := rfl
+@[simp_iN_bitvec] theorem bitvec_icmpSlt_bitvec_eq (a b : BitVec n) : (bitvec a <ₛ bitvec b) = bitvec (if a.slt b then 1 else 0) := rfl
+@[simp_iN_bitvec] theorem bitvec_icmpSle_bitvec_eq (a b : BitVec n) : (bitvec a ≤ₛ bitvec b) = bitvec (if a.sle b then 1 else 0) := rfl
+@[simp_iN_bitvec] theorem bitvec_icmpSgt_bitvec_eq (a b : BitVec n) : (bitvec a >ₛ bitvec b) = bitvec (if a.sle b then 0 else 1) := rfl
+@[simp_iN_bitvec] theorem bitvec_icmpSge_bitvec_eq (a b : BitVec n) : (bitvec a ≥ₛ bitvec b) = bitvec (if a.slt b then 0 else 1) := rfl
+end simp_bitvec_iN
 
 section norm_eqs_simp_iN
 /-! When using simp_iN, these simp-lemmas rewrite the notation into back into iN, so they can be lowered -/

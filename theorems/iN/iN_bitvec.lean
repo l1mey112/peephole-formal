@@ -14,8 +14,13 @@ macro_rules
       | bitvec $ys:ident => ?_
       | poison => simp [simp_iN]];*);
 
-      try simp at * /- simp hypotheses with bitvec -/
+      try simp [ofNat_eq_bitvec_ofNat] at * /- simp hypotheses with bitvec -/
     )
+
+syntax "bitvec_arguments" : tactic
+macro_rules
+| `(tactic| bitvec_arguments) =>
+  `(tactic| simp [simp_iN_bitvec])
 
 theorem BitVec.saddOverflow_comm {n} {a b : BitVec n}
     : a.saddOverflow b = b.saddOverflow a := by

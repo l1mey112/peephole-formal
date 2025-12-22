@@ -70,7 +70,7 @@ instance {n} : Trans (@Rewrite n) (@Rewrite n) (@Rewrite n) where
 Rewrite congruence. Even though no instruction should be able to
 "observe" poison, `wf` must still be an assumption.
 -/
-theorem congrApp {n} (f : iN n → iN n)
+theorem congrApp {n m} (f : iN n → iN m)
     (wf : f poison = poison)
     {a a' : iN n} (h : a ~> a') : f a ~> f a' := by
 

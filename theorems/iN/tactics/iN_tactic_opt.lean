@@ -118,7 +118,8 @@ def handleRewrites (abstract : Expr) (hole : Expr) : OptM Expr := do
   let mut motive_wf := default
 
   if (← read).prove_rewrites then
-    motive_wf ← proveCongruence motive bw
+    /- TODO see `proveCongruence` will not handle differing bitwidth on ~> -/
+    motive_wf ← proveCongruence motive bw bw
 
   let mut expr := hole
 

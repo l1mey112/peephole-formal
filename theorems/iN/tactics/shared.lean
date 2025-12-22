@@ -268,15 +268,14 @@ def getOptTheorems : MetaM OptTheorems := do
 
   return optTheorems
 
-/-- Proves `f poison = poison`. -/
-def proveCongruence (motive : Expr) (n : Expr) : MetaM Expr := do
+/-- Proves `f poison = poison`, for `f (poison : iN n) = (poison : iN n')`. -/
+def proveCongruence (motive : Expr) (n n' : Expr) : MetaM Expr := do
   /- TODO make this function prove things nicely instead of unwrapping
     things down to the bone with simp which is slow and creates bloated
     proof terms -/
 
-  let poison := mkApp (.const ``poison []) n
-  let poison_app := mkApp motive poison
-  let goalType ← mkEq poison_app poison
+  let poison_app := mkApp motive $ mkApp (.const ``poison []) n
+  let goalType ← mkEq poison_app $ mkApp (.const ``poison []) n'
 
   let proofMVar ← mkFreshExprMVar goalType .synthetic `h_cong_proof
 
@@ -289,6 +288,6 @@ def proveCongruence (motive : Expr) (n : Expr) : MetaM Expr := do
   if let some _ := result? then
     /- throwTactic `opt_rewrite x
       m!"unable to prove congruence goal `motive poison = poison` automatically with `simp [simp_iN]`" -/
-    throwError "unable to prove congruence goal `motive poison = poison` automatically with `simp [simp_iN]`"
+    throwError m!"unable to prove congruence goal `motive poison = poison` automatically with `simp [simp_iN]`{indentD motive}"
 
   instantiateMVars proofMVar

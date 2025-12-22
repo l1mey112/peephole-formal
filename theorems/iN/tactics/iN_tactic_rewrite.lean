@@ -27,14 +27,14 @@ elab "opt_rewrite" t:term : tactic => withMainContext do
   let e ← getMainTarget
   let e ← instantiateMVars e
 
-  let (n, lhs, rhs) ← matchRewrite e
-  let (_, x, y) ← matchRewrite heqType
+  let (n', lhs, rhs) ← matchRewrite e
+  let (n, x, y) ← matchRewrite heqType
 
   -- h: x ~> y
   -- ⊢ lhs ~> rhs
   let lhsAbst ← kabstract lhs x occs
   unless lhsAbst.hasLooseBVars do
-    throwTacticEx `opt_rewrite mvarId m!"did not find instance of the pattern in the target expression{indentExpr lhs}"
+    throwTacticEx `opt_rewrite mvarId m!"did not find instance of the pattern in the target expression{indentExpr lhs}\n"
 
   let α := (Expr.app (.const `iN []) n)
   let motive := Lean.mkLambda `_a BinderInfo.default α lhsAbst
@@ -44,7 +44,8 @@ elab "opt_rewrite" t:term : tactic => withMainContext do
   catch ex =>
     throwTacticEx `opt_rewrite mvarId m!"motive is not type correct:{indentD motive}\nError: {ex.toMessageData}"
 
-  let motiveProof ← liftMetaM $ proveCongruence motive n
+  /- Rewrite (_ : iN n) ~> (_ : iN n') -/
+  let motiveProof ← liftMetaM $ proveCongruence motive n n'
   let congrProof ← mkAppM ``Rewrite.congrApp #[motive, motiveProof, heq]
 
   -- h : lhs ~> lhs'
@@ -55,7 +56,7 @@ elab "opt_rewrite" t:term : tactic => withMainContext do
 
   /- Construct final proof term with `Rewrite.trans` and a new goal. -/
   let unreducedLhsNew := mkApp motive y
-  let newGoalType := mkAppN (.const ``Rewrite []) #[n, unreducedLhsNew, rhs]
+  let newGoalType := mkAppN (.const ``Rewrite []) #[n', unreducedLhsNew, rhs]
   let newGoalMVar ← mkFreshExprMVar (some newGoalType)
   let fullProof ← mkAppM ``Rewrite.trans #[congrProof, newGoalMVar]
   mvarId.assign fullProof

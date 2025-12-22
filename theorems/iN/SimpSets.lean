@@ -9,3 +9,7 @@ open Lean Meta
 initialize simpIN : SimpExtension ←
   registerSimpAttr `simp_iN
     "simp lemmas unwrapping instructions"
+
+initialize simpINBitvec : SimpExtension ←
+  registerSimpAttr `simp_iN_bitvec
+    "simp lemmas unwrapping instructions"

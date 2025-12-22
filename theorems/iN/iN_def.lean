@@ -21,11 +21,11 @@ instance : Coe (BitVec n) (iN n) where
 instance : Inhabited (iN n) where
   default := poison
 
-namespace iN
-
 @[simp_iN]
 theorem ofNat_eq_bitvec_ofNat {n val} :
-  (no_index (OfNat.ofNat val) : iN n) = iN.bitvec (BitVec.ofNat n val) := rfl
+  (no_index (OfNat.ofNat val) : iN n) = iN.bitvec val := rfl
+
+namespace iN
 
 @[simp, grind =]
 theorem bitvec_inj {n} {a b : BitVec n} :
