@@ -3,7 +3,7 @@ import theorems.iN.iN_def
 /--
 `Rewrite x y` means the value `x` can be rewritten into the value `y`.
 
-Rewriting both ways, i.e., `Rewrite x y ∧ Rewrite y x`, means `x` and `y` are equal.
+Rewriting both ways, i.e., `Rewrite x y ∧ Rewrite y x`, means `x = y`.
 This is a theorem, proved by `Rewrite.rewriteIff_iff_eq`.
 -/
 inductive Rewrite {n} : iN n → iN n → Prop where
