@@ -58,6 +58,9 @@ def eval (ξ : WidthAssignment) (σ : Assignment) : IR idx → iN (ξ.get idx)
 
 end IR
 
+def PackedIR.eval (p : PackedIR) (ξ : WidthAssignment) (σ : Assignment) : PackediN :=
+  ⟨IR.eval ξ σ p.x⟩
+
 theorem addNsw_refine_add {n} (x y : iN n) : x +nsw y ~> x + y := by
   poison_unroll x y => a b
 
@@ -106,8 +109,8 @@ deriving Inhabited, Repr
 abbrev MatchM := StateT MatchState Option
 
 /- construct a new WidthAssignment after the match happens, then return some (ξ, σ) if match -/
-def MatchM.match (lhs ir : IR idx) : MatchM Unit := do
-  match lhs, ir with
+def MatchM.match (pat : IR 0) (ir : IR idx) : MatchM Unit := do
+  match pat, ir with
   | .var id, _ =>
     let st ← get
     if let some ir_existing := st.assignment[id]? then
@@ -133,8 +136,8 @@ def MatchM.match (lhs ir : IR idx) : MatchM Unit := do
 
   | _, _ => failure
 
-def matchRewriteAbstract {n} (lhs ir : IR n) : Option MatchState :=
-  let result := (MatchM.match lhs ir).run default
+def matchRewriteAbstract {idx} (pat : IR 0) (ir : IR idx) : Option MatchState :=
+  let result := (MatchM.match pat ir).run default
   match result with
   | some ((), st) => some st
   | none => none
@@ -142,6 +145,101 @@ def matchRewriteAbstract {n} (lhs ir : IR n) : Option MatchState :=
 #eval matchRewriteAbstract
   (IR.addNsw (IR.var 0) (IR.var 1) : IR 0)
   (IR.addNsw (IR.const 10) (IR.const 23) : IR 0)
+
+/- takes an expression x, optimises it into x' and returns a proof that x ~> x' -/
+
+structure IRRewrite' where
+  valid : WidthAssignment → Bool
+
+  /- the implementation, to optimise, it needs to know whether or not the width assignment
+    respect the `valid` prop -/
+  impl : (ξ : WidthAssignment) → valid ξ → {idx : Nat} → IR idx → IR idx
+
+  wf : ∀ (ξ : WidthAssignment) (h : valid ξ) (σ : Assignment) {idx : Nat} (lhs : IR idx),
+    let rhs := impl ξ h lhs
+    (IR.eval ξ σ lhs) ~> (IR.eval ξ σ rhs)
+
+def add_zero'' : IRRewrite' :=
+  { valid := fun ξ => true
+  , impl := fun ξ _ _ ir => match ir with
+      | IR.add lhs (IR.const 0) => lhs
+      | _ => ir
+  , wf := by
+      intros ξ _ σ _ lhs
+
+      split <;> try rfl
+      apply add_zero
+  }
+
+def applyRewrite {idx} (ir : IR idx) (r : IRRewrite') (ξ : WidthAssignment) (ξvalid : r.valid ξ) : IR idx :=
+  r.impl ξ ξvalid ir
+
+theorem applyRewriteCorrect (ir : IR idx) (r : IRRewrite')
+  (σ : Assignment) (ξ : WidthAssignment) (ξvalid : r.valid ξ)
+  : (IR.eval ξ σ ir) ~> (IR.eval ξ σ (applyRewrite ir r ξ ξvalid)) := r.wf ξ ξvalid σ ir
+
+def A : IR 0 := IR.add (IR.var 0) (IR.const 0)
+def B {n : Nat} : IR 0 := applyRewrite A add_zero'' (Lean.RArray.leaf n) (by trivial)
+
+def Aeval {n} : iN n → iN n :=
+  fun x => IR.eval (Lean.RArray.leaf n) (Lean.RArray.leaf ⟨x⟩) A
+
+def Beval {n} : iN n → iN n :=
+  fun x => IR.eval (Lean.RArray.leaf n) (Lean.RArray.leaf ⟨x⟩) (@B n)
+
+theorem Aeval_rewrite_Beval {n} (x : iN n) :
+  Aeval x ~> Beval x :=
+  applyRewriteCorrect A add_zero'' (Lean.RArray.leaf ⟨x⟩) (Lean.RArray.leaf n) (by trivial)
+
+#eval @Aeval 32 (bitvec 1)
+
+/- should really take in an expression of `fun {n} ... {m} (x : iN n) ... (z : iN m) => ...` and optimises it -/
+
+elab "⟪" t:term "⟫" " [" s:withoutPosition(term,*,?) "]" : term => do
+  match s with
+  | `([$rs,*]%$rbrak) =>
+    let t ← Term.elabTerm t none
+
+
+
+    /- let rewrites : Array Q(IRRewrite) ← rs.getElems.mapM fun te => elabTermEnsuringTypeQ te q(IRRewrite) -/
+
+    sorry
+  | _ => throwUnsupportedSyntax
+
+  have qir : Q(Prop) := ← Term.elabTerm t none
+  /- let ⟨⟩ ← match qir with
+  | ~q(@Rewrite $n $lhs $rhs) => sorry
+  | ~q($lhs = $rhs) => sorry
+  | _ => throwError "expected a Rewrite structure" -/
+
+  `(IR.eval $ir)
+
+/- elab s:ruleSeq : term => do
+
+  /- have qir : Q(Prop) := ← Term.elabTerm stx none
+  let ⟨⟩ ← match qir with
+  | ~q(@Rewrite $n $lhs $rhs) => sorry
+  | ~q($lhs = $rhs) => sorry
+  | _ => throwError "expected a Rewrite structure" -/
+
+  `(IR.eval $ir) -/
+
+/- run_elab do
+  2
+ -/
+
+/- theorem t : False := by
+  simp
+ -/
+
+  /- let ξ : WidthAssignment := Lean.RArray.leaf n
+  let σ : Assignment := Lean.RArray.leaf 0
+
+  have t := addNsw_refine_add'.wf ξ (by simp) σ
+
+  `(t) -/
+
 
 /- def matchRewrite {n} (σ : IR.Assignment) (ir : IR n) (r : IRRewrite) : Bool :=
   let ξ : WidthAssignment := Lean.RArray.leaf n
@@ -195,27 +293,5 @@ have t := addNsw_refine_add'.valid wa
 /- theorem addNsw_refine_add {n} (x y : iN n) : x +nsw y ~> x + y := by
 
  -/
-/- inductive IRe : Nat → Type where
-  | const {n : Nat} (val : BitVec n) : IR n
-  | sext {n : Nat} (w : Nat) (arg : IR w) : IR n -/
 
--- ∀x : α, P x ↔ (x : α) → P x
-
-/- syntax "⟦" term "⟧" : term /- denote -/
-syntax "⟪" term "⟫" : term /- convert to expr -/
-
-/- macro_rules
-| `(⟦$term⟧) => `(IR.eval $term)
-| `(⟪$term⟫) => `(IR.eval $term) -/
-
-/- will convert a proof of lhs ~> rhs into a proper rewrite -/
-elab "⟪" stx:term "⟫" : term => do
-
-  have qir : Q(Prop) := ← Term.elabTerm stx none
-  let ⟨⟩ ← match qir with
-  | ~q(@Rewrite $n $lhs $rhs) => sorry
-  | ~q($lhs = $rhs) => sorry
-  | _ => throwError "expected a Rewrite structure"
-
-  `(IR.eval $ir) -/
 -/
