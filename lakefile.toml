@@ -4,6 +4,10 @@ defaultTargets = ["theorems"]
 [[lean_lib]]
 name = "theorems"
 
+[[require]]
+name = "Qq"
+scope = "leanprover-community"
+
 [[lean_exe]]
 name = "extract_theorems"
 root = "scripts.extract_theorems"
