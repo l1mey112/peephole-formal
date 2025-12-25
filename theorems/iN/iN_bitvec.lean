@@ -104,3 +104,22 @@ theorem addNuw_not_uaddOverflow_bitvec_eq_add {n} {a b : BitVec n} (h : ¬a.uadd
     : (bitvec a) +nuw (bitvec b) = bitvec (a + b) := by
 
   simp [simp_iN, h]
+
+section norm_poison_propagate_iN
+@[simp_iN high] theorem add_poison_eq_poison (x : iN n) : x + poison = poison := by simp [simp_iN]
+@[simp_iN high] theorem poison_add_eq_poison (x : iN n) : poison + x = poison := by simp [simp_iN]
+@[simp_iN high] theorem addNsw_poison_eq_poison (x : iN n) : x +nsw poison = poison := by simp [simp_iN]
+@[simp_iN high] theorem poison_addNsw_eq_poison (x : iN n) : poison +nsw x = poison := by simp [simp_iN]
+@[simp_iN high] theorem addNuw_poison_eq_poison (x : iN n) : x +nuw poison = poison := by simp [simp_iN]
+@[simp_iN high] theorem poison_addNuw_eq_poison (x : iN n) : poison +nuw x = poison := by simp [simp_iN]
+@[simp_iN high] theorem addNw_poison_eq_poison (x : iN n) : x +nw poison = poison := by simp [simp_iN]
+@[simp_iN high] theorem poison_addNw_eq_poison (x : iN n) : poison +nw x = poison := by simp [simp_iN]
+@[simp_iN high] theorem sub_poison_eq_poison (x : iN n) : x - poison = poison := by simp [simp_iN]
+@[simp_iN high] theorem poison_sub_eq_poison (x : iN n) : poison - x = poison := by simp [simp_iN]
+@[simp_iN high] theorem subNsw_poison_eq_poison (x : iN n) : x -nsw poison = poison := by simp [simp_iN]
+@[simp_iN high] theorem poison_subNsw_eq_poison (x : iN n) : poison -nsw x = poison := by simp [simp_iN]
+@[simp_iN high] theorem subNuw_poison_eq_poison (x : iN n) : x -nuw poison = poison := by simp [simp_iN]
+@[simp_iN high] theorem poison_subNuw_eq_poison (x : iN n) : poison -nuw x = poison := by simp [simp_iN]
+@[simp_iN high] theorem subNw_poison_eq_poison (x : iN n) : x -nw poison = poison := by simp [simp_iN]
+@[simp_iN high] theorem poison_subNw_eq_poison (x : iN n) : poison -nw x = poison := by simp [simp_iN]
+end norm_poison_propagate_iN
