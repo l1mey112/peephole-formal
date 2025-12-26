@@ -61,13 +61,39 @@ theorem add_zero {n} (x : iN n) : x + (bitvec 0) ~> x := by
 For the implementation to optimise, it needs to know whether or not the width assignment respect the `valid` prop.
 --/
 structure Rule where
+  /- TODO support WidthAssignment → Assignment → Bool -/
   valid : WidthAssignment → Bool
 
   impl : {idx : Nat} → IR idx → IR idx
 
-  wf : ∀ (ξ : WidthAssignment) (ξvalid : valid ξ) (σ : Assignment) {idx : Nat} (lhs : IR idx),
+  wf : ∀ (ξ : WidthAssignment) (ξvalid : valid ξ) (σ : Assignment) (lhs : IR idx),
     let rhs := impl lhs
     (IR.eval ξ σ lhs) ~> (IR.eval ξ σ rhs)
+
+/-
+
+∀ir : IR, IR.eval ir ~> IR.eval (opt ir)
+
+∀ (ir : IR) (σ : Assignment) (ξ : WidthAssignment),
+
+  IR.eval ir ξ σ ~> IR.eval (opt ir) ξ σ
+
+
+IR.eval ξ σ (IR.var 0 : IR idx)          iN 32, IR 0       (ξ 0 = 32)
+
+  = (σ 0 : iN (ξ idx))
+
+  σ : Nat → iN n        (variable index → value)
+  ξ : Nat → Nat         (bitwidth index → bitwidth)
+
+-/
+
+def applyRewrite {idx} (ir : IR idx) (r : Rule) : IR idx :=
+  r.impl ir
+
+theorem applyRewriteCorrect (ir : IR idx) (r : Rule)
+  (σ : Assignment) (ξ : WidthAssignment) (ξvalid : r.valid ξ)
+  : (IR.eval ξ σ ir) ~> (IR.eval ξ σ (applyRewrite ir r)) := r.wf ξ ξvalid σ ir
 
 def add_zero' : Rule :=
   { valid := fun ξ => true
@@ -81,25 +107,18 @@ def add_zero' : Rule :=
       apply add_zero
   }
 
-def applyRewrite {idx} (ir : IR idx) (r : Rule) : IR idx :=
-  r.impl ir
-
-theorem applyRewriteCorrect (ir : IR idx) (r : Rule)
-  (σ : Assignment) (ξ : WidthAssignment) (ξvalid : r.valid ξ)
-  : (IR.eval ξ σ ir) ~> (IR.eval ξ σ (applyRewrite ir r)) := r.wf ξ ξvalid σ ir
-
 def A : IR 0 := IR.add (IR.var 0) (IR.const 0)
 def B : IR 0 := applyRewrite A add_zero'
 
 def Aeval {n} : iN n → iN n :=
-  fun x => IR.eval (Lean.RArray.leaf n) (Lean.RArray.leaf ⟨x⟩) A
+  fun x => IR.eval (.leaf n) (.leaf ⟨x⟩) A
 
 def Beval {n} : iN n → iN n :=
-  fun x => IR.eval (Lean.RArray.leaf n) (Lean.RArray.leaf ⟨x⟩) B
+  fun x => IR.eval (.leaf n) (.leaf ⟨x⟩) B
 
 theorem Aeval_rewrite_Beval {n} (x : iN n) :
   Aeval x ~> Beval x :=
-  applyRewriteCorrect A add_zero' (Lean.RArray.leaf ⟨x⟩) (Lean.RArray.leaf n) (by trivial)
+  applyRewriteCorrect A add_zero' (.leaf ⟨x⟩) (.leaf n) (by trivial)
 
 #eval @Aeval 32 (bitvec 1)
 
@@ -228,6 +247,8 @@ def reifyExprApply (rule : Rule) (ruleExpr : Q(Rule)) (e : Expr) : MetaM PackedI
 
     let ir ← reifyIRExpr resultIdx assignment body
 
+    logInfo m!"ir: {repr ir}"
+
     have resultIdxQ : Q(Nat) := toExpr resultIdx
     have irQ : Q(IR $resultIdxQ) := toExpr ir
 
@@ -301,8 +322,63 @@ elab "⟪" t:term "⟫" s:rwRuleSeq : term => do
     return t
   | _ => throwUnsupportedSyntax
 
-
 --#eval ⟪fun {n} {m} (x : iN n) (y : iN m) => y⟫
 def fn := ⟪fun {n} (x : iN n) => x +nsw x⟫ []
 
 #print fn
+
+/-
+
+-- https://timothymou.com/posts/proof-by-reflection-and-why-not-to-use-it/
+-- BVDecide tactic (but doesn't use denoting back into the original form)
+
+  (1)   ⟨ir, ξ, σ, ir.eval = lhs⟩ = reifyIRExpr lhs
+
+  (2)   ir' = rule.impl ir                                           (perform optimisation by calling impl)
+  (3)   h: ir.eval ξ σ ~> ir'.eval ξ σ                               (by rule.wf, we know this optimisation is correct)
+
+  (4)   ⟨rhs, ir'.eval = rhs⟩ = denoteIRExpr ir' ξ σ                 (note you don't need to use the RArray versions here)
+
+
+  chain ir.eval = lhs, ir.eval ~> ir'.eval, ir'.eval = rhs, to get
+
+    lhs ~> rhs
+
+-/
+
+/-
+
+(reify) Expr -> IR, returns a proof that IR.eval = expr
+
+(denote) IR -> Expr, returns a proof that IR.eval = expr
+
+lhs =>
+  ir  = reify lhs     (IR.eval ir = lhs)
+  ir' = opt ir        (IR.eval ir ~> IR.eval ir')   (opt.wf)
+  rhs = denote ir'    (IR.eval ir' = rhs)
+
+  -- lhs = IR.eval ir ~> IR.eval ir' = rhs
+  -- lhs ~> rhs
+
+  return ⟨rhs, lhs ~> rhs⟩
+
+
+def opt : IR → IR :=
+  | lhs + 0 => lhs          (add_zero_rewrite lhs)
+  | x => x                  (x ~> x)
+
+theorem opt.wf
+  : ∀ir : IR, IR.eval ir ~> IR.eval (opt ir)
+
+-/
+
+/-
+
+
+reify : Expr -> IR
+denote IR -> Expr
+
+reify (denote expr) = expr
+
+
+ -/
