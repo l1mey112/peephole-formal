@@ -1,44 +1,56 @@
-import theorems.experiments.ir.Basic
-
 import Lean
 import Qq
 open Lean Elab Meta
 open Qq
 
-/- ir = reify expr        (IR.eval ir = expr) -/
+/--
+LLVM-style integers with poison value.
+-/
+inductive iN (bits : Nat) : Type where
+  | bitvec : BitVec bits → iN bits
+  | poison : iN bits
+deriving BEq
 
-/-
-theorem test {idx id} (x : iN n) (σ : Assignment)
-    (hb : (σ.get id).n = n)
-    (h : hb ▸ (σ.get id).x = x)
-    : IR.eval (RArray.leaf n) σ (IR.var id : IR idx) = x := by
- -/
+export iN (poison bitvec)
 
-/-- Some assignment `x : iN n`. -/
-structure FVarAssignment where
-  /-- Index into σ. -/
-  id : Nat
+inductive IR : Nat → Type where
+  | var (id : Nat) : IR idx
+  | const_poison : IR idx
 
-  /-- Proof that `(σ.get id).n = n`. -/
-  hb : Expr
-  /-- Proof that `hb ▸ (σ.get id).x = x`. -/
-  h : Expr
+deriving BEq, Repr, Lean.ToExpr
 
-def FVarAssignment.ofPair (mapξ : Std.HashMap Nat FVarId) (σQ : Q(Assignment))
-    (id : Nat) (pair : FVarId × Nat) : MetaM (FVarId × FVarAssignment) := do
+structure PackediN where
+  {n : Nat}
+  x : iN n
+deriving BEq
 
-  let ⟨fvar, idx⟩ := pair
-  have n : Q(Nat) := mkFVar $ mapξ.get! idx
-  have x : Q(iN $n) := mkFVar fvar
+structure PackedIR where
+  {idx : Nat}
+  ir : IR idx
+deriving Repr
 
-  have hb : Q((($σQ).get $id).n = $n) :=
-    mkExpectedPropHint (← mkEqRefl n) q((($σQ).get $id).n = $n)
+def PackediN.truncate (pack : PackediN) (n : Nat) : iN n :=
+  match pack.x with
+  | poison => poison
+  | bitvec a => bitvec (a.truncate n)
 
-  have h : Q($hb ▸ (($σQ).get $id).x = $x) :=
-    mkExpectedPropHint (← mkEqRefl x) q($hb ▸ (($σQ).get $id).x = $x)
+abbrev Assignment := Lean.RArray PackediN
+abbrev WidthAssignment := Lean.RArray Nat
 
-  let assignment : FVarAssignment := ⟨id, hb, h⟩
-  return ⟨fvar, assignment⟩
+namespace IR
+
+def eval (ξ : WidthAssignment) (σ : Assignment) : IR idx → iN (ξ.get idx)
+  | var id =>
+    let pack := σ.get id
+    /- h is always true, this if is for totality -/
+    if h : pack.n = (ξ.get idx) then
+      h ▸ pack.x
+    else
+      pack.truncate (ξ.get idx)
+
+  | const_poison => poison
+
+end IR
 
 structure ReifyEnv where
   /- "evals at assignments" -/
@@ -46,10 +58,7 @@ structure ReifyEnv where
   σQ : Q(Assignment) /- varId → iN ?? -/
 
   /- FVarId → varId -/
-  σMap : Std.HashMap FVarId FVarAssignment
-
-  /- idx → FVarId -/
-  mapξ : Std.HashMap Nat FVarId
+  σMap : Std.HashMap FVarId Nat
 
 def ReifyEnv.of' (assignment : Array (FVarId × Nat)) (width_assignment : Array FVarId)
   (h : 0 < assignment.size) (h' : 0 < width_assignment.size) : MetaM ReifyEnv := do
@@ -73,12 +82,8 @@ def ReifyEnv.of' (assignment : Array (FVarId × Nat)) (width_assignment : Array 
       have fid : Q(PackediN) := q(@PackediN.mk (($ξQ).get $idxQ) $xQ)
       fid
 
-  let mapξ := Std.HashMap.ofArray $ width_assignment.mapIdx (·, ·)
-  let fvarAssignments ←
-    assignment.mapIdxM $ FVarAssignment.ofPair mapξ σQ
-
-  let σMap := Std.HashMap.ofArray fvarAssignments
-  return ⟨ξQ, σQ, σMap, mapξ⟩
+  let σMap := Std.HashMap.ofArray assignment
+  return ⟨ξQ, σQ, σMap⟩
 
 /- accepts expressions of the form
   `fun {n} ... {m} (x : iN n) ... (z : iN m) : iN n => ...` -/
@@ -139,13 +144,12 @@ def run' (env : ReifyEnv) (m : M α) : MetaM α :=
 
 end M
 
-
 structure ReifiedIR (idx : Nat) where
   irExpr : IR idx
   originalExpr : Expr
 
-  /- proof that IR.eval irExpr = originalExpr  -/
-  proof : M Expr
+  /- proof that IR.eval irExpr = originalExpr, or by rfl if none  -/
+  proof : M (Option Expr)
 
 namespace ReifiedIR
 
@@ -158,38 +162,22 @@ end ReifiedIR
 theorem reflect_poison_eval_poison {idx ξ σ}
   : IR.eval ξ σ (IR.const_poison : IR idx) = (poison : iN (ξ.get idx)) := rfl
 
-/- theorem reflect_var_eval_var {idx id} (ξ : WidthAssignment) (σ : Assignment)
-  (h : (σ.get id).n = ξ.get idx)
-  : (IR.eval ξ σ (IR.var id : IR idx)) = (h ▸ (σ.get id).x : iN (ξ.get idx)) := by
-
-  subst h -/
-
-theorem reflect_var_eval_var {idx id} (x : iN n) (σ : Assignment)
-    (hb : (σ.get id).n = n)
-    (h : hb ▸ (σ.get id).x = x)
-    : IR.eval (RArray.leaf n) σ (IR.var id : IR idx) = x := by
-
-  simp [IR.eval, hb, h]
-
-#print test
-
 partial def reifyIRExpr (idx : Nat) (body : Expr) : M (ReifiedIR idx) := do
   match_expr body with
   | iN.poison _ =>
-    let ⟨ξQ, σQ, _, _⟩ ← read
+    let ⟨ξQ, σQ, _⟩ ← read
 
     let proof := pure q(@reflect_poison_eval_poison $idx $ξQ $σQ)
     return ⟨IR.const_poison, body, proof⟩
 
   | _ =>
-    let ⟨ξQ, _, σMap, mapξ⟩ ← read
+    let ⟨_, _, σMap⟩ ← read
 
     if let some fvarid := body.fvarId? then
-      let some ⟨id, _, _⟩ := σMap.get? fvarid
+      let some varId := σMap.get? fvarid
         | throwError "reifyIRExpr: unbound free variable {body}"
 
-      /- TODO proof -/
-      return ⟨IR.var id, body, pure $ mkFVar fvarid⟩
+      return ⟨IR.var varId, body, pure none⟩
 
     throwError "reifyIRExpr: unsupported expression {body}"
 
@@ -199,7 +187,6 @@ elab "⟪" t:term "⟫" : term => do
     /- body : iN (ξ.get resultIdx) -/
     let (resultIdx, env) := ← ReifyEnv.of fvars body; M.run' env do
 
-
     let ir ← (reifyIRExpr resultIdx body).run env
 
     logInfo m!"ir: {repr ir.irExpr}"
@@ -207,73 +194,24 @@ elab "⟪" t:term "⟫" : term => do
 
     have irExpr : Q(IR $resultIdx) := toExpr ir.irExpr
     let evalExpr : Expr ← ReifiedIR.mkEvalIR resultIdx irExpr
-    /- IR.eval ... =  -/
-
-    /- logInfo m!"print: {← isDefEq evalExpr}"
- -/
 
     if (← withTransparency (.all) <| isDefEq evalExpr body) then
       logInfo "yes"
-
-    /- if not (← isDefEq evalExpr body) then
-      logInfo "why?" -/
 
     let expr ← mkEq evalExpr body
     logInfo m!"expr: {expr}"
     check expr
 
-    return t
+    if not (← isDefEq evalExpr body) then
+      logInfo "expr is not definitionally equal"
 
---#eval ⟪fun {n} (x : iN n) => x +nsw x⟫
+    return toExpr ir.irExpr
+
+/-
+ir: IR.var 0
+proof: <not-available>
+
+expr: IR.eval (RArray.leaf n) (RArray.leaf { n := (RArray.leaf n).get 0, x := x }) (IR.var 0) = x
+expr is not definitionally equal
+-/
 #eval ⟪fun {n} (x : iN n) => x⟫
-
-theorem te : Nat.add 2 10 = 12 := rfl
-
-theorem teset {n} (x : iN n)
-    : IR.eval (RArray.leaf n) (RArray.leaf { n := (RArray.leaf n).get 0, x := x }) (IR.var 0 : IR 0) = x := by
-
-  rfl
-  /-
-  Tactic `rfl` failed: The left-hand side
-    IR.eval (RArray.leaf n) (RArray.leaf { n := (RArray.leaf n).get 0, x := x }) (IR.var 0)
-  is not definitionally equal to the right-hand side
-    x
-  -/
-  simp [IR.eval] -- this works!
-
-theorem t8 (p : BitVec 8)
-  : Std.Tactic.BVDecide.BVExpr.eval (Lean.RArray.leaf { w := 8, bv := p })
-    (Std.Tactic.BVDecide.BVExpr.var 0) = p := by
-
-  rfl
-
-/- when you introduce a quantifier, it fails to be definitionally equal! -/
-theorem tn {n} (p : BitVec n)
-  : Std.Tactic.BVDecide.BVExpr.eval (Lean.RArray.leaf { w := n, bv := p })
-    (Std.Tactic.BVDecide.BVExpr.var 0) = p := by
-
-  rfl -- fails!
-
-theorem test' {n} (x : iN n)
-    : IR.eval (RArray.leaf n) (RArray.leaf { n := (RArray.leaf n).get 0, x := x }) (IR.var 0 : IR 0) =
-
-      (let pack := (RArray.leaf { n := (RArray.leaf n).get 0, x := x } : Assignment).get 0
-      /- h is always true, this if is for totality -/
-      if h : pack.n = ((RArray.leaf n).get 0) then
-        h ▸ pack.x
-      else
-        pack.truncate ((RArray.leaf n).get 0)) := by
-
-  rfl
-
-theorem test'' {n} (x : iN n)
-    : (let pack := (RArray.leaf { n := (RArray.leaf n).get 0, x := x } : Assignment).get 0
-      /- h is always true, this if is for totality -/
-      if h : pack.n = ((RArray.leaf n).get 0) then
-        h ▸ pack.x
-      else
-        pack.truncate ((RArray.leaf n).get 0)) = x := by rfl
-
-theorem e {n} (x : iN n) : ((RArray.leaf { n := (RArray.leaf n).get 0, x := x : PackediN }).get 0).x = x := rfl
-
-#print e

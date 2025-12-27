@@ -31,7 +31,6 @@ abbrev WidthAssignment := Lean.RArray Nat
 
 namespace IR
 
-@[reducible]
 def eval (ξ : WidthAssignment) (σ : Assignment) : IR idx → iN (ξ.get idx)
   | var id =>
     let pack := σ.get id

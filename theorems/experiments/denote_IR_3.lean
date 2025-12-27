@@ -349,10 +349,9 @@ def fn := ⟪fun {n} (x : iN n) => x +nsw x⟫ []
 /-
 
 (reify) Expr -> IR, returns a proof that IR.eval = expr
-
 (denote) IR -> Expr, returns a proof that IR.eval = expr
 
-lhs =>
+
   ir  = reify lhs     (IR.eval ir = lhs)
   ir' = opt ir        (IR.eval ir ~> IR.eval ir')   (opt.wf)
   rhs = denote ir'    (IR.eval ir' = rhs)
