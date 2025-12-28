@@ -34,7 +34,10 @@ namespace IR
 def eval (ξ : WidthAssignment) (σ : Assignment) : IR idx → iN (ξ.get idx)
   | var id =>
     let pack := σ.get id
-    /- h is always true, this if is for totality -/
+    /- h is always true, this if is for totality.
+
+      unlike `bv_decide`, we lose out on definitional equality for `.var` so the
+      goal needs to be proven symbolically by `simp [IR.eval]` -/
     if h : pack.n = (ξ.get idx) then
       h ▸ pack.x
     else
