@@ -5,75 +5,83 @@ import Qq
 open Lean Elab Meta
 open Qq
 
-/-- Some assignment `x : iN n`. -/
-structure FVarAssignment where
-  /-- Index into σ. -/
-  id : Nat
-
-  /-- Proof that `(σ.get id).n = n`. -/
-  hb : Expr
-  /-- Proof that `hb ▸ (σ.get id).x = x`. -/
-  h : Expr
-
-def FVarAssignment.ofPair (mapξ : Std.HashMap Nat FVarId) (σQ : Q(Assignment))
-    (id : Nat) (pair : FVarId × Nat) : MetaM (FVarId × FVarAssignment) := do
-
-  let ⟨fvar, idx⟩ := pair
-  have n : Q(Nat) := mkFVar $ mapξ.get! idx
-  have x : Q(iN $n) := mkFVar fvar
-
-  have hb : Q((($σQ).get $id).n = $n) :=
-    mkExpectedPropHint (← mkEqRefl n) q((($σQ).get $id).n = $n)
-
-  have h : Q($hb ▸ (($σQ).get $id).x = $x) :=
-    mkExpectedPropHint (← mkEqRefl x) q($hb ▸ (($σQ).get $id).x = $x)
-
-  let assignment : FVarAssignment := ⟨id, hb, h⟩
-  return ⟨fvar, assignment⟩
-
 structure ReifyEnv where
   /- "evals at assignments" -/
   ξQ : Q(WidthAssignment)
   σQ : Q(Assignment) /- varId → iN ?? -/
 
-  /- FVarId → varId -/
-  σMap : Std.HashMap FVarId FVarAssignment
+  /- FVarId → (varId, proof). index into σ and proof that IR.eval ξ σ (.var id) = x -/
+  σMap : Std.HashMap FVarId <| Nat × Expr
 
   /- idx → FVarId -/
   mapξ : Std.HashMap Nat FVarId
 
-def ReifyEnv.of' (assignment : Array (FVarId × Nat)) (width_assignment : Array FVarId)
-  (h : 0 < assignment.size) (h' : 0 < width_assignment.size) : MetaM ReifyEnv := do
-  let assignment' : RArray (FVarId × Nat) :=
-    RArray.ofArray assignment h
+def proveEval (ξQ : Q(WidthAssignment)) (σQ : Q(Assignment))
+    (id : Nat) (pair : FVarId × Nat) : MetaM (FVarId × (Nat × Expr)) := do
 
-  let width_assignment' : RArray FVarId :=
-    RArray.ofArray width_assignment h'
+  let ⟨fvar, idx⟩ := pair
+  let irVar : IR idx := .var id
 
-  have ξQ : Q(WidthAssignment) :=
-    ← width_assignment'.toExpr q(Nat) fun (fvar : FVarId) => mkFVarEx fvar
+  let exprVar : Q(iN <| ($ξQ).get $idx) := mkFVar fvar
 
-  have σQ : Q(Assignment) :=
-    ← assignment'.toExpr q(PackediN) fun (⟨x, idx⟩ : FVarId × Nat) =>
-      /- we want iN (ξ.get idx) -/
-      /- ⟨ξ.get idx, x⟩ -/
+  let irVarExpr : Q(IR $idx) := toExpr irVar
+  let proofType : Q(Prop) := q(IR.eval $ξQ $σQ $irVarExpr = $exprVar)
 
-      have idxQ : Q(Nat) := toExpr idx
+  /- this cannot be proved definitionally! we need to use simp unfortunately.. -/
+  let proofMVar ← mkFreshExprMVar proofType .synthetic `proveEval
 
-      have xQ : Q(iN (($ξQ).get $idxQ)) := mkFVarEx x
-      have fid : Q(PackediN) := q(@PackediN.mk (($ξQ).get $idxQ) $xQ)
-      fid
+  let mut simpThms ← getSimpTheorems
+  simpThms ← simpThms.addDeclToUnfold ``IR.eval
+
+  let ctx ← Simp.mkContext
+    (config := { beta := true })
+    (simpTheorems := #[← getSimpTheorems, simpThms])
+    (congrTheorems := (← getSimpCongrTheorems))
+
+  let (result?, _) ← simpGoal proofMVar.mvarId! ctx
+
+  if let some _ := result? then
+    throwError m!"unable to prove goal {proofType} (unreachable)"
+
+  return ⟨fvar, idx, ← instantiateMVars proofMVar⟩
+
+def ReifyEnv.of' (assignment : Array (FVarId × Nat)) (width_assignment : Array FVarId) : MetaM ReifyEnv := do
+
+  let mut ξQ' : Q(WidthAssignment) := q(.leaf default)
+  let mut σQ' : Q(Assignment) := q(.leaf default)
+
+  if h : 0 < width_assignment.size then
+    let width_assignment' : RArray FVarId :=
+      RArray.ofArray width_assignment h
+
+    have ξQ : Q(WidthAssignment) := ← width_assignment'.toExpr q(Nat) fun (fvar : FVarId) => mkFVarEx fvar
+
+    if h' : 0 < assignment.size then
+      let assignment' : RArray (FVarId × Nat) :=
+        RArray.ofArray assignment h'
+
+      have σQ : Q(Assignment) := ← assignment'.toExpr q(PackediN) fun (⟨x, idx⟩ : FVarId × Nat) =>
+        /- we want iN (ξ.get idx) -/
+        /- ⟨ξ.get idx, x⟩ -/
+
+        have idxQ : Q(Nat) := toExpr idx
+        have xQ : Q(iN (($ξQ).get $idxQ)) := mkFVarEx x
+        have fid : Q(PackediN) := q(@PackediN.mk (($ξQ).get $idxQ) $xQ)
+        fid
+
+      σQ' := σQ
+    ξQ' := ξQ
 
   let mapξ := Std.HashMap.ofArray $ width_assignment.mapIdx (·, ·)
-  let fvarAssignments ←
-    assignment.mapIdxM $ FVarAssignment.ofPair mapξ σQ
+  let σMap := Std.HashMap.ofArray (← assignment.mapIdxM $ proveEval ξQ' σQ')
+  return ⟨ξQ', σQ', σMap, mapξ⟩
 
-  let σMap := Std.HashMap.ofArray fvarAssignments
-  return ⟨ξQ, σQ, σMap, mapξ⟩
-
-/- accepts expressions of the form
-  `fun {n} ... {m} (x : iN n) ... (z : iN m) : iN n => ...` -/
-/- entire expression is iN (ξ.get result_idx) -/
+/--
+Accepts expressions of the form
+```lean
+fun {n} ... {m} (x : iN n) ... (z : iN m) : iN n => ...
+```
+such that the entire expression is of type `iN (ξ.get result_idx)`. -/
 def ReifyEnv.of (fvars : Array Expr) (body : Expr) : MetaM (Nat × ReifyEnv) := do
   /- map each type iN n -> idx of WidthAssignment -/
   /- these are fvars being m, n, ... -/
@@ -100,12 +108,6 @@ def ReifyEnv.of (fvars : Array Expr) (body : Expr) : MetaM (Nat × ReifyEnv) := 
       assignment := assignment.push (fvar.fvarId!, assignmentIdx)
     | _ => throwError "reifyExpr: unsupported type"
 
-  if h : ¬0 < assignment.size then
-    unreachable!
-  else if h' : ¬0 < width_assignment.size then
-    unreachable!
-  else
-
   let body_type ← inferType body
   let resultIdx ← match_expr body_type with
   | iN nv =>
@@ -117,7 +119,6 @@ def ReifyEnv.of (fvars : Array Expr) (body : Expr) : MetaM (Nat × ReifyEnv) := 
   | _ => throwError "reifyExpr: unsupported body type {body_type}"
 
   let env ← ReifyEnv.of' assignment width_assignment
-    (by exact Decidable.of_not_not h) (by exact Decidable.of_not_not h')
 
   return ⟨resultIdx, env⟩
 
@@ -135,8 +136,7 @@ structure ReifiedIR (idx : Nat) where
   irExpr : IR idx
   originalExpr : Expr
 
-  /-- Proof that IR.eval irExpr = originalExpr.  -/
-  /- TODO add Option for none if holds by rfl -/
+  /-- Proof that IR.eval ξ σ irExpr = originalExpr.  -/
   proof : M Expr
 
 namespace ReifiedIR
@@ -147,61 +147,45 @@ def mkEvalIR (idx : Nat) (expr : Q(IR $idx)) : M Expr := do
 
 end ReifiedIR
 
-theorem reflect_poison_eval_poison {idx ξ σ}
-  : IR.eval ξ σ (IR.const_poison : IR idx) = (poison : iN (ξ.get idx)) := rfl
-
 partial def reifyIRExpr (idx : Nat) (body : Expr) : M (ReifiedIR idx) := do
+  let ⟨ξQ, σQ, σMap, _⟩ ← read
+  have bodyQ : Q(iN <| ($ξQ).get $idx) := body
+
   match_expr body with
   | iN.poison _ =>
-    let ⟨ξQ, σQ, _, _⟩ ← read
 
-    /- TODO this holds definitionally, so no need to prove this anyway -/
-    let proof := pure q(@reflect_poison_eval_poison $idx $ξQ $σQ)
-    return ⟨IR.const_poison, body, proof⟩
+    let ir : IR idx := .poison
+    have irExpr : Q(IR $idx) := toExpr ir
+
+    have lhs : Q(iN <| ($ξQ).get $idx) := q(IR.eval $ξQ $σQ $irExpr)
+    have : $lhs =Q $bodyQ := .unsafeIntro
+
+    return ⟨ir, body, pure q(rfl : $lhs = $bodyQ)⟩
 
   | _ =>
-    let ⟨ξQ, _, σMap, mapξ⟩ ← read
-
     if let some fvarid := body.fvarId? then
-      let some ⟨id, _, _⟩ := σMap.get? fvarid
+      let some ⟨id, proof⟩ := σMap.get? fvarid
         | throwError "reifyIRExpr: unbound free variable {body}"
 
-      /- TODO proof -/
-      /- TODO prove symbolically by `simp [IR.eval]` -/
-      return ⟨IR.var id, body, pure $ mkFVar fvarid⟩
+      return ⟨.var id, body, pure proof⟩
 
     throwError "reifyIRExpr: unsupported expression {body}"
 
 elab "⟪" t:term "⟫" : term => do
   let t ← Term.elabTerm t none
+  if t.hasExprMVar then
+    throwError m!"expression contains metavariables:{indentD t}"
+
   lambdaTelescope t fun fvars body => do
     /- body : iN (ξ.get resultIdx) -/
     let (resultIdx, env) := ← ReifyEnv.of fvars body; M.run' env do
-
-
     let ir ← (reifyIRExpr resultIdx body).run env
 
     logInfo m!"ir: {repr ir.irExpr}"
     logInfo m!"proof: {← ir.proof}"
 
-    have irExpr : Q(IR $resultIdx) := toExpr ir.irExpr
-    let evalExpr : Expr ← ReifiedIR.mkEvalIR resultIdx irExpr
-    /- IR.eval ... =  -/
-
-    /- logInfo m!"print: {← isDefEq evalExpr}"
- -/
-
-    if (← withTransparency (.all) <| isDefEq evalExpr body) then
-      logInfo "yes"
-
-    /- if not (← isDefEq evalExpr body) then
-      logInfo "why?" -/
-
-    let expr ← mkEq evalExpr body
-    logInfo m!"expr: {expr}"
-    check expr
-
-    return t
+    check (← ir.proof)
+    return toExpr ir.irExpr
 
 --#eval ⟪fun {n} (x : iN n) => x +nsw x⟫
 #eval ⟪fun {n} (x : iN n) => x⟫

@@ -3,7 +3,7 @@ import theorems.iN
 inductive IR : Nat → Type where
   | var (id : Nat) : IR idx
   | const (val : Nat) : IR idx
-  | const_poison : IR idx
+  | poison : IR idx
 
   | add (lhs rhs : IR idx) : IR idx
   | addNsw (lhs rhs : IR idx) : IR idx
@@ -14,7 +14,7 @@ deriving instance BEq for iN
 structure PackediN where
   {n : Nat}
   x : iN n
-deriving BEq
+deriving BEq, Inhabited
 
 structure PackedIR where
   {idx : Nat}
@@ -32,7 +32,7 @@ abbrev WidthAssignment := Lean.RArray Nat
 namespace IR
 
 def eval (ξ : WidthAssignment) (σ : Assignment) : IR idx → iN (ξ.get idx)
-  | var id =>
+  | .var id =>
     let pack := σ.get id
     /- h is always true, this if is for totality.
 
@@ -43,11 +43,11 @@ def eval (ξ : WidthAssignment) (σ : Assignment) : IR idx → iN (ξ.get idx)
     else
       pack.truncate (ξ.get idx)
 
-  | const val => bitvec val
-  | const_poison => poison
+  | .const val => iN.bitvec val
+  | .poison => iN.poison
 
-  | add lhs rhs => iN.add (eval ξ σ lhs) (eval ξ σ rhs)
-  | addNsw lhs rhs => iN.addNsw (eval ξ σ lhs) (eval ξ σ rhs)
+  | .add lhs rhs => iN.add (eval ξ σ lhs) (eval ξ σ rhs)
+  | .addNsw lhs rhs => iN.addNsw (eval ξ σ lhs) (eval ξ σ rhs)
 
   /- | add lhs rhs => iN.add (eval σ lhs) (eval σ rhs)
   | addNsw lhs rhs => iN.addNsw (eval σ lhs) (eval σ rhs)
