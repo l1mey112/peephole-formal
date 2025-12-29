@@ -33,6 +33,9 @@ def proveEval (ξQ : Q(WidthAssignment)) (σQ : Q(Assignment))
   let mut simpThms ← getSimpTheorems
   simpThms ← simpThms.addDeclToUnfold ``IR.eval
 
+  /- TODO this is unacceptably huge as a proof term, use the theorem/lemma you created before
+    as the hypotheses are definitionally true and only requires dumping the ξ around -/
+
   let ctx ← Simp.mkContext
     (config := { beta := true })
     (simpTheorems := #[← getSimpTheorems, simpThms])
@@ -81,7 +84,8 @@ Accepts expressions of the form
 ```lean
 fun {n} ... {m} (x : iN n) ... (z : iN m) : iN n => ...
 ```
-such that the entire expression is of type `iN (ξ.get result_idx)`. -/
+such that the entire expression is of type `iN (ξ.get result_idx)`.
+--/
 def ReifyEnv.of (fvars : Array Expr) (body : Expr) : MetaM (Nat × ReifyEnv) := do
   /- map each type iN n -> idx of WidthAssignment -/
   /- these are fvars being m, n, ... -/
@@ -134,6 +138,8 @@ end M
 
 structure ReifiedIR (idx : Nat) where
   irExpr : IR idx
+  expr : Q(IR $idx) /- toExpr irExpr -/
+
   originalExpr : Expr
 
   /-- Proof that IR.eval ξ σ irExpr = originalExpr.  -/
@@ -141,15 +147,28 @@ structure ReifiedIR (idx : Nat) where
 
 namespace ReifiedIR
 
-def mkEvalIR (idx : Nat) (expr : Q(IR $idx)) : M Expr := do
-  let st ← read
-  return q(IR.eval $(st.ξQ) $(st.σQ) $expr)
+def mkEvalIR (idx : Nat) (ξQ : Q(WidthAssignment)) (σQ : Q(Assignment)) (expr : Q(IR $idx)) : M Q(iN $ ($ξQ).get $idx) := do
+  return q(IR.eval $ξQ $σQ $expr)
 
 end ReifiedIR
 
+
+theorem addNsw_congr (n : Nat) (lhs rhs lhs' rhs' : iN n) (h1 : lhs' = lhs) (h2 : rhs' = rhs)
+    : lhs' +nsw rhs' = lhs +nsw rhs := by simp_all
+
+/- IR.eval ξ σ (IR.var 0) +nsw IR.eval ξ σ (IR.var 0) = x +nsw x -/
+
+theorem eval_addNsw_abstract {idx} (ξ : WidthAssignment) (σ : Assignment) (lhs rhs : IR idx)
+    : IR.eval ξ σ lhs +nsw (IR.eval ξ σ rhs) = IR.eval ξ σ (IR.addNsw lhs rhs) := rfl
+
 partial def reifyIRExpr (idx : Nat) (body : Expr) : M (ReifiedIR idx) := do
   let ⟨ξQ, σQ, σMap, _⟩ ← read
-  have bodyQ : Q(iN <| ($ξQ).get $idx) := body
+
+  /- insert defeq so typechecking plays nice -/
+  have nQ : Q(Nat) := q(($ξQ).get $idx)
+  have : $nQ =Q ($ξQ).get $idx := .unsafeIntro
+
+  have bodyQ : Q(iN $nQ) := body
 
   match_expr body with
   | iN.poison _ =>
@@ -157,35 +176,59 @@ partial def reifyIRExpr (idx : Nat) (body : Expr) : M (ReifiedIR idx) := do
     let ir : IR idx := .poison
     have irExpr : Q(IR $idx) := toExpr ir
 
-    have lhs : Q(iN <| ($ξQ).get $idx) := q(IR.eval $ξQ $σQ $irExpr)
+    have lhs : Q(iN $nQ) := q(IR.eval $ξQ $σQ $irExpr)
     have : $lhs =Q $bodyQ := .unsafeIntro
 
-    return ⟨ir, body, pure q(rfl : $lhs = $bodyQ)⟩
+    return ⟨ir, toExpr ir, body, pure q(rfl : $lhs = $bodyQ)⟩
+
+  | iN.addNsw _ lhsExpr rhsExpr =>
+    have lhsExpr : Q(iN $nQ) := lhsExpr
+    have rhsExpr : Q(iN $nQ) := rhsExpr
+
+    let lhs ← reifyIRExpr idx lhsExpr
+    let rhs ← reifyIRExpr idx rhsExpr
+
+    let ir : IR idx := .addNsw lhs.irExpr rhs.irExpr
+    let irExpr : Q(IR $idx) := q(IR.addNsw $(lhs.expr) $(rhs.expr))
+
+    let lhsEval ← ReifiedIR.mkEvalIR idx ξQ σQ lhs.expr
+    let rhsEval ← ReifiedIR.mkEvalIR idx ξQ σQ rhs.expr
+
+    have lhsProof : Q($lhsEval = $lhsExpr) := ← lhs.proof
+    have rhsProof : Q($rhsEval = $rhsExpr) := ← rhs.proof
+
+    /- body = IR.eval ξ σ lhs +nsw (IR.eval ξ σ rhs) =Q IR.eval ξ σ (IR.addNsw lhs rhs) -/
+    /- these are definitionally equal, so it's fine anyway and IR.eval is on the outside -/
+    let proof := q(addNsw_congr $nQ $lhsExpr $rhsExpr $lhsEval $rhsEval $lhsProof $rhsProof)
+
+    return ⟨ir, irExpr, body, pure proof⟩
 
   | _ =>
     if let some fvarid := body.fvarId? then
       let some ⟨id, proof⟩ := σMap.get? fvarid
         | throwError "reifyIRExpr: unbound free variable {body}"
 
-      return ⟨.var id, body, pure proof⟩
+      let ir : IR idx := .var id
+      return ⟨ir, toExpr ir, body, pure proof⟩
 
     throwError "reifyIRExpr: unsupported expression {body}"
 
 elab "⟪" t:term "⟫" : term => do
-  let t ← Term.elabTerm t none
-  if t.hasExprMVar then
-    throwError m!"expression contains metavariables:{indentD t}"
+  let expr ← Term.withoutErrToSorry do Term.elabTerm t none
+  if expr.hasExprMVar then
+    throwError m!"Type mismatch: The argument expression{indentD expr}\ncontains metavariables."
 
-  lambdaTelescope t fun fvars body => do
+  lambdaTelescope expr fun fvars body => do
     /- body : iN (ξ.get resultIdx) -/
     let (resultIdx, env) := ← ReifyEnv.of fvars body; M.run' env do
     let ir ← (reifyIRExpr resultIdx body).run env
 
     logInfo m!"ir: {repr ir.irExpr}"
     logInfo m!"proof: {← ir.proof}"
+    logInfo m!"proved: {← inferType (← ir.proof)}"
 
     check (← ir.proof)
     return toExpr ir.irExpr
 
---#eval ⟪fun {n} (x : iN n) => x +nsw x⟫
-#eval ⟪fun {n} (x : iN n) => x⟫
+#eval ⟪fun {n} (x : iN n) => x +nsw x +nsw x +nsw x +nsw x⟫
+--#eval ⟪fun {n} (x : iN n) => x⟫
