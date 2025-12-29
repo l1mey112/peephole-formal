@@ -16,37 +16,36 @@ structure ReifyEnv where
   /- idx → FVarId -/
   mapξ : Std.HashMap Nat FVarId
 
-def proveEval (ξQ : Q(WidthAssignment)) (σQ : Q(Assignment))
+theorem eval_var_eq_var {idx id} (ξ : WidthAssignment) (σ : Assignment) (x : iN (ξ.get idx))
+  (hb : (σ.get id).n = ξ.get idx)
+  (h : hb ▸ (σ.get id).x = x)
+  : IR.eval ξ σ (IR.var id : IR idx) = x := by
+
+  simp [IR.eval, h, hb]
+
+def proveEval (ξQ : Q(WidthAssignment)) (σQ : Q(Assignment)) (mapξ : Std.HashMap Nat FVarId)
     (id : Nat) (pair : FVarId × Nat) : MetaM (FVarId × (Nat × Expr)) := do
 
   let ⟨fvar, idx⟩ := pair
-  let irVar : IR idx := .var id
 
-  let exprVar : Q(iN <| ($ξQ).get $idx) := mkFVar fvar
+  have n : Q(Nat) := mkFVar $ mapξ.get! idx
+  have x : Q(iN $n) := mkFVar fvar
 
-  let irVarExpr : Q(IR $idx) := toExpr irVar
-  let proofType : Q(Prop) := q(IR.eval $ξQ $σQ $irVarExpr = $exprVar)
+  /- these are both definitional equalities, so we just need a bit of massaging -/
 
-  /- this cannot be proved definitionally! we need to use simp unfortunately.. -/
-  let proofMVar ← mkFreshExprMVar proofType .synthetic `proveEval
+  have hb : Q((($σQ).get $id).n = $n) :=
+    mkExpectedPropHint (← mkEqRefl n) q((($σQ).get $id).n = $n)
 
-  let mut simpThms ← getSimpTheorems
-  simpThms ← simpThms.addDeclToUnfold ``IR.eval
+  have h : Q($hb ▸ (($σQ).get $id).x = $x) :=
+    mkExpectedPropHint (← mkEqRefl x) q($hb ▸ (($σQ).get $id).x = $x)
 
-  /- TODO this is unacceptably huge as a proof term, use the theorem/lemma you created before
-    as the hypotheses are definitionally true and only requires dumping the ξ around -/
+  /- if Qq gives you issues, stop using q(·) and use Expr functions -/
 
-  let ctx ← Simp.mkContext
-    (config := { beta := true })
-    (simpTheorems := #[← getSimpTheorems, simpThms])
-    (congrTheorems := (← getSimpCongrTheorems))
+  have : $n =Q ($ξQ).get $idx := .unsafeIntro
+  have proof : Q(IR.eval $ξQ $σQ (IR.var $id) = $x) :=
+    mkApp7 (mkConst ``eval_var_eq_var) (toExpr idx) (toExpr id) ξQ σQ x hb h
 
-  let (result?, _) ← simpGoal proofMVar.mvarId! ctx
-
-  if let some _ := result? then
-    throwError m!"unable to prove goal {proofType} (unreachable)"
-
-  return ⟨fvar, idx, ← instantiateMVars proofMVar⟩
+  return ⟨fvar, idx, proof⟩
 
 def ReifyEnv.of' (assignment : Array (FVarId × Nat)) (width_assignment : Array FVarId) : MetaM ReifyEnv := do
 
@@ -76,7 +75,7 @@ def ReifyEnv.of' (assignment : Array (FVarId × Nat)) (width_assignment : Array 
     ξQ' := ξQ
 
   let mapξ := Std.HashMap.ofArray $ width_assignment.mapIdx (·, ·)
-  let σMap := Std.HashMap.ofArray (← assignment.mapIdxM $ proveEval ξQ' σQ')
+  let σMap := Std.HashMap.ofArray (← assignment.mapIdxM $ proveEval ξQ' σQ' mapξ)
   return ⟨ξQ', σQ', σMap, mapξ⟩
 
 /--
@@ -151,7 +150,6 @@ def mkEvalIR (idx : Nat) (ξQ : Q(WidthAssignment)) (σQ : Q(Assignment)) (expr 
   return q(IR.eval $ξQ $σQ $expr)
 
 end ReifiedIR
-
 
 theorem addNsw_congr (n : Nat) (lhs rhs lhs' rhs' : iN n) (h1 : lhs' = lhs) (h2 : rhs' = rhs)
     : lhs' +nsw rhs' = lhs +nsw rhs := by simp_all
@@ -230,5 +228,5 @@ elab "⟪" t:term "⟫" : term => do
     check (← ir.proof)
     return toExpr ir.irExpr
 
-#eval ⟪fun {n} (x : iN n) => x +nsw x +nsw x +nsw x +nsw x⟫
+#eval ⟪fun {n} (x : iN n) => (x +nsw poison) +nsw x +nsw x⟫
 --#eval ⟪fun {n} (x : iN n) => x⟫
