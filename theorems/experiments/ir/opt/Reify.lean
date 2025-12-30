@@ -35,27 +35,8 @@ partial def reifyIRExpr (idx : Nat) (body : Expr) : M (ReifiedIR idx) := do
 
     return ⟨ir, toExpr ir, body, pure q(rfl : $lhs = $bodyQ)⟩
 
-  | iN.addNsw _ lhsExpr rhsExpr =>
-    have lhsExpr : Q(iN $nQ) := lhsExpr
-    have rhsExpr : Q(iN $nQ) := rhsExpr
-
-    let lhs ← reifyIRExpr idx lhsExpr
-    let rhs ← reifyIRExpr idx rhsExpr
-
-    let ir : IR idx := .addNsw lhs.irExpr rhs.irExpr
-    let irExpr : Q(IR $idx) := q(IR.addNsw $(lhs.expr) $(rhs.expr))
-
-    let lhsEval ← M.mkEvalIR idx ξQ σQ lhs.expr
-    let rhsEval ← M.mkEvalIR idx ξQ σQ rhs.expr
-
-    have lhsProof : Q($lhsEval = $lhsExpr) := ← lhs.proof
-    have rhsProof : Q($rhsEval = $rhsExpr) := ← rhs.proof
-
-    /- body = IR.eval ξ σ lhs +nsw (IR.eval ξ σ rhs) =Q IR.eval ξ σ (IR.addNsw lhs rhs) -/
-    /- these are definitionally equal, so it's fine anyway and IR.eval is on the outside -/
-    let proof := q(addNsw_congr $nQ $lhsExpr $rhsExpr $lhsEval $rhsEval $lhsProof $rhsProof)
-
-    return ⟨ir, irExpr, body, pure proof⟩
+  | iN.addNsw _ lhsExpr rhsExpr => reifyBinop idx lhsExpr rhsExpr IR.addNsw ``IR.addNsw ``addNsw_congr
+  | iN.add _ lhsExpr rhsExpr => reifyBinop idx lhsExpr rhsExpr IR.addNsw ``IR.add ``add_congr
 
   | _ =>
     if let some fvarid := body.fvarId? then
@@ -66,3 +47,38 @@ partial def reifyIRExpr (idx : Nat) (body : Expr) : M (ReifiedIR idx) := do
       return ⟨ir, toExpr ir, body, pure proof⟩
 
     throwError "reifyIRExpr: unsupported expression {body}"
+where
+  reifyBinop (idx : Nat) (lhsExpr rhsExpr : Expr) (cons : IR idx → IR idx → IR idx)
+      (consName : Name) (congrLemma : Name)
+      : M (ReifiedIR idx) := do
+
+    let ⟨ξQ, σQ, _, _⟩ ← read
+
+    /- insert defeq so typechecking plays nice -/
+    have nQ : Q(Nat) := q(($ξQ).get $idx)
+    have : $nQ =Q ($ξQ).get $idx := .unsafeIntro
+
+    have idxQ : Q(Nat) := toExpr idx
+    have congrLemmaQ := mkConst congrLemma
+    have consQ : Q(IR $idx → IR $idx → IR $idx) := mkApp (mkConst consName) idxQ
+
+    have lhsExpr : Q(iN $nQ) := lhsExpr
+    have rhsExpr : Q(iN $nQ) := rhsExpr
+
+    let lhs ← reifyIRExpr idx lhsExpr
+    let rhs ← reifyIRExpr idx rhsExpr
+
+    let ir : IR idx := cons lhs.irExpr rhs.irExpr
+    let irExpr : Q(IR $idx) := q($consQ $(lhs.expr) $(rhs.expr))
+
+    let lhsEval ← M.mkEvalIR idx ξQ σQ lhs.expr
+    let rhsEval ← M.mkEvalIR idx ξQ σQ rhs.expr
+
+    have lhsProof : Q($lhsEval = $lhsExpr) := ← lhs.proof
+    have rhsProof : Q($rhsEval = $rhsExpr) := ← rhs.proof
+
+    /- body = IR.eval ξ σ lhs +nsw (IR.eval ξ σ rhs) =Q IR.eval ξ σ (IR.addNsw lhs rhs) -/
+    /- these are definitionally equal, so it's fine anyway and IR.eval is on the outside -/
+    let proof := mkApp7 congrLemmaQ nQ lhsExpr rhsExpr lhsEval rhsEval lhsProof rhsProof
+
+    return ⟨ir, irExpr, body, pure proof⟩

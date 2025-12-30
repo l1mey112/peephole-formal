@@ -33,6 +33,8 @@ def addNsw_refine_add' : Rule :=
       apply addNsw_refine_add
   }
 
+#check funext
+
 elab "⟨⟨" t:term "⟩⟩" : term => do
   let expr ← Term.withoutErrToSorry do Term.elabTerm t none
   if expr.hasExprMVar then
@@ -54,4 +56,4 @@ elab "⟨⟨" t:term "⟩⟩" : term => do
     check (← ir.proof)
     return expr
 
-def f' := ⟨⟨fun {n} (x : iN n) => (x +nsw poison) +nsw x +nsw x⟩⟩
+def f' := ⟨⟨fun {n} (x : iN n) => x + x⟩⟩

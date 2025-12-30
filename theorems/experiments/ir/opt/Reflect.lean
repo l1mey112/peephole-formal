@@ -20,3 +20,6 @@ end IR
 
 theorem addNsw_congr (n : Nat) (lhs rhs lhs' rhs' : iN n) (h1 : lhs' = lhs) (h2 : rhs' = rhs)
     : lhs' +nsw rhs' = lhs +nsw rhs := by simp_all
+
+theorem add_congr (n : Nat) (lhs rhs lhs' rhs' : iN n) (h1 : lhs' = lhs) (h2 : rhs' = rhs)
+    : lhs' + rhs' = lhs + rhs := by simp_all
