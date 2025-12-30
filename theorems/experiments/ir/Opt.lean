@@ -1,6 +1,7 @@
 import theorems.iN
 import theorems.experiments.ir.opt.M
 import theorems.experiments.ir.opt.Reify
+import theorems.experiments.ir.opt.Denote
 import Lean
 
 open Lean Elab Meta
@@ -33,8 +34,6 @@ def addNsw_refine_add' : Rule :=
       apply addNsw_refine_add
   }
 
-#check funext
-
 elab "⟨⟨" t:term "⟩⟩" : term => do
   let expr ← Term.withoutErrToSorry do Term.elabTerm t none
   if expr.hasExprMVar then
@@ -43,17 +42,18 @@ elab "⟨⟨" t:term "⟩⟩" : term => do
   lambdaTelescope expr fun fvars body => do
     /- body : iN (ξ.get resultIdx) -/
     let (resultIdx, env) := ← MEnv.of fvars body; M.run' env do
-    let ir ← (reifyIRExpr resultIdx body).run env
+      let reified ← reifyIRExpr resultIdx body
+      let irProof ← reified.proof
 
-    logInfo m!"ir: {repr ir.irExpr}"
-    logInfo m!"proof: {← ir.proof}"
-    logInfo m!"proved: {← inferType (← ir.proof)}"
+      let rhs ← denoteIRExpr reified.ir
+      let rhsProof ← rhs.proof
 
-    let ir' := addNsw_refine_add'.impl ir.irExpr
+      check irProof
+      check rhsProof
 
-    logInfo m!"ir': {repr ir'}"
+      logInfo m!"reifyProof: {← inferType irProof}"
+      logInfo m!"denoteProof: {← inferType rhsProof}"
 
-    check (← ir.proof)
     return expr
 
-def f' := ⟨⟨fun {n} (x : iN n) => x + x⟩⟩
+def f' := ⟨⟨fun {n} (x : iN n) => (x + poison) +nsw x +nsw x +nsw x⟩⟩

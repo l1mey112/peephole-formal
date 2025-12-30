@@ -15,7 +15,10 @@ structure MEnv where
   σMap : Std.HashMap FVarId <| Nat × Expr
 
   /- idx → FVarId -/
-  mapξ : Std.HashMap Nat FVarId
+  mapξ : Array FVarId
+
+  /- varId → (FVarId, proof) -/
+  mapσ : Array (FVarId × Expr)
 
 abbrev M := ReaderT MEnv MetaM
 
@@ -29,12 +32,12 @@ def mkEvalIR (idx : Nat) (ξQ : Q(WidthAssignment)) (σQ : Q(Assignment)) (expr 
 
 end M
 
-def proveEval_var_eq (ξQ : Q(WidthAssignment)) (σQ : Q(Assignment)) (mapξ : Std.HashMap Nat FVarId)
+def proveEval_var_eq (ξQ : Q(WidthAssignment)) (σQ : Q(Assignment)) (mapξ : Array FVarId)
     (id : Nat) (pair : FVarId × Nat) : MetaM (FVarId × (Nat × Expr)) := do
 
   let ⟨fvar, idx⟩ := pair
 
-  have n : Q(Nat) := mkFVar $ mapξ.get! idx
+  have n : Q(Nat) := mkFVar $ mapξ[idx]!
   have x : Q(iN $n) := mkFVar fvar
 
   /- these are both definitional equalities, so we just need a bit of massaging -/
@@ -80,9 +83,11 @@ def MEnv.of' (assignment : Array (FVarId × Nat)) (width_assignment : Array FVar
       σQ' := σQ
     ξQ' := ξQ
 
-  let mapξ := Std.HashMap.ofArray $ width_assignment.mapIdx (·, ·)
-  let σMap := Std.HashMap.ofArray (← assignment.mapIdxM $ proveEval_var_eq ξQ' σQ' mapξ)
-  return ⟨ξQ', σQ', σMap, mapξ⟩
+  let assignments ← assignment.mapIdxM $ proveEval_var_eq ξQ' σQ' width_assignment
+
+  let σMap := Std.HashMap.ofArray assignments
+  let mapσ := assignments.map fun ⟨fvar, _, proof⟩ => ⟨fvar, proof⟩
+  return ⟨ξQ', σQ', σMap, width_assignment, mapσ⟩
 
 /--
 Accepts expressions of the form

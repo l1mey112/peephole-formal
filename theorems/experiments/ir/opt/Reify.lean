@@ -7,8 +7,8 @@ open Lean Elab Meta
 open Qq
 
 structure ReifiedIR (idx : Nat) where
-  irExpr : IR idx
-  expr : Q(IR $idx) /- toExpr irExpr -/
+  ir : IR idx
+  irExpr : Q(IR $idx) /- toExpr irExpr -/
 
   originalExpr : Expr
 
@@ -16,7 +16,7 @@ structure ReifiedIR (idx : Nat) where
   proof : M Expr
 
 partial def reifyIRExpr (idx : Nat) (body : Expr) : M (ReifiedIR idx) := do
-  let ⟨ξQ, σQ, σMap, _⟩ ← read
+  let ⟨ξQ, σQ, σMap, _, _⟩ ← read
 
   /- insert defeq so typechecking plays nice -/
   have nQ : Q(Nat) := q(($ξQ).get $idx)
@@ -35,8 +35,8 @@ partial def reifyIRExpr (idx : Nat) (body : Expr) : M (ReifiedIR idx) := do
 
     return ⟨ir, toExpr ir, body, pure q(rfl : $lhs = $bodyQ)⟩
 
-  | iN.addNsw _ lhsExpr rhsExpr => reifyBinop idx lhsExpr rhsExpr IR.addNsw ``IR.addNsw ``addNsw_congr
-  | iN.add _ lhsExpr rhsExpr => reifyBinop idx lhsExpr rhsExpr IR.addNsw ``IR.add ``add_congr
+  | iN.addNsw _ lhsExpr rhsExpr => reifyBinop lhsExpr rhsExpr IR.addNsw ``IR.addNsw ``addNsw_congr
+  | iN.add _ lhsExpr rhsExpr => reifyBinop lhsExpr rhsExpr IR.add ``IR.add ``add_congr
 
   | _ =>
     if let some fvarid := body.fvarId? then
@@ -48,11 +48,11 @@ partial def reifyIRExpr (idx : Nat) (body : Expr) : M (ReifiedIR idx) := do
 
     throwError "reifyIRExpr: unsupported expression {body}"
 where
-  reifyBinop (idx : Nat) (lhsExpr rhsExpr : Expr) (cons : IR idx → IR idx → IR idx)
+  reifyBinop (lhsExpr rhsExpr : Expr) (cons : IR idx → IR idx → IR idx)
       (consName : Name) (congrLemma : Name)
       : M (ReifiedIR idx) := do
 
-    let ⟨ξQ, σQ, _, _⟩ ← read
+    let ⟨ξQ, σQ, _, _, _⟩ ← read
 
     /- insert defeq so typechecking plays nice -/
     have nQ : Q(Nat) := q(($ξQ).get $idx)
@@ -68,11 +68,11 @@ where
     let lhs ← reifyIRExpr idx lhsExpr
     let rhs ← reifyIRExpr idx rhsExpr
 
-    let ir : IR idx := cons lhs.irExpr rhs.irExpr
-    let irExpr : Q(IR $idx) := q($consQ $(lhs.expr) $(rhs.expr))
+    let ir : IR idx := cons lhs.ir rhs.ir
+    let irExpr : Q(IR $idx) := q($consQ $(lhs.irExpr) $(rhs.irExpr))
 
-    let lhsEval ← M.mkEvalIR idx ξQ σQ lhs.expr
-    let rhsEval ← M.mkEvalIR idx ξQ σQ rhs.expr
+    let lhsEval ← M.mkEvalIR idx ξQ σQ lhs.irExpr
+    let rhsEval ← M.mkEvalIR idx ξQ σQ rhs.irExpr
 
     have lhsProof : Q($lhsEval = $lhsExpr) := ← lhs.proof
     have rhsProof : Q($rhsEval = $rhsExpr) := ← rhs.proof
