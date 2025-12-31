@@ -2,9 +2,12 @@ import theorems.iN
 import theorems.experiments.ir.opt.M
 import theorems.experiments.ir.opt.Reify
 import theorems.experiments.ir.opt.Denote
+import theorems.experiments.ir.opt.Rewrite
 import Lean
+import Qq
 
 open Lean Elab Meta
+open Qq
 
 /-
 
@@ -28,14 +31,25 @@ def addNsw_refine_add' : Rule :=
       | _ => ir
 
   , wf := by
-      intros ξ _ σ _ lhs
+      intros idx ξ σ lhs
 
       split <;> try rfl
       apply addNsw_refine_add
   }
 
-elab "⟨⟨" t:term "⟩⟩" : term => do
-  let expr ← Term.withoutErrToSorry do Term.elabTerm t none
+unsafe def evalImplUnsafe (idx : Nat) (irExpr : Q(IR $idx)) (rule : Q(Rule)) : MetaM (IR idx) := do
+  let expr := q(($rule).impl $irExpr)
+  evalExpr (IR idx) q(IR $idx) expr
+
+@[implemented_by evalImplUnsafe]
+opaque evalImpl (idx : Nat) (irExpr : Q(IR $idx)) (rule : Q(Rule)) : MetaM (IR idx)
+
+elab "⟨⟨" ruleStx:term ":" exprStx:term "⟩⟩" : term => do
+  let expr ← Term.withoutErrToSorry do Term.elabTerm exprStx none
+  if expr.hasExprMVar then
+    throwError m!"Type mismatch: The argument expression{indentD expr}\ncontains metavariables."
+
+  have rule : Q(Rule) := ← Term.withoutErrToSorry do Term.elabTerm ruleStx q(Rule)
   if expr.hasExprMVar then
     throwError m!"Type mismatch: The argument expression{indentD expr}\ncontains metavariables."
 
@@ -45,7 +59,9 @@ elab "⟨⟨" t:term "⟩⟩" : term => do
       let reified ← reifyIRExpr resultIdx body
       let irProof ← reified.proof
 
-      let rhs ← denoteIRExpr reified.ir
+      let ir' ← evalImpl resultIdx reified.irExpr rule
+
+      let rhs ← denoteIRExpr ir'
       let rhsProof ← rhs.proof
 
       check irProof
@@ -54,6 +70,11 @@ elab "⟨⟨" t:term "⟩⟩" : term => do
       logInfo m!"reifyProof: {← inferType irProof}"
       logInfo m!"denoteProof: {← inferType rhsProof}"
 
+      let rwProof ← constructProof reified ir' rhs q(@($rule).wf)
+
+      check rwProof
+      logInfo m!"rwProof: {← inferType rwProof}"
+
     return expr
 
-def f' := ⟨⟨fun {n} (x : iN n) => (x + poison) +nsw x +nsw x +nsw x⟩⟩
+def f' := ⟨⟨addNsw_refine_add' : fun {n} (x : iN n) => x +nsw x⟩⟩

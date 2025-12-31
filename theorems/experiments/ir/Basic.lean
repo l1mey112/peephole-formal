@@ -59,12 +59,14 @@ end IR
 
 /--
 For the implementation to optimise, it needs to know whether or not the width assignment respect the `valid` prop.
---/
+-/
 structure Rule where
   valid : WidthAssignment → Bool
 
   impl : {idx : Nat} → IR idx → IR idx
 
-  wf : ∀ (ξ : WidthAssignment) (ξvalid : valid ξ) (σ : Assignment) (lhs : IR idx),
+  /- TODO implement proper hypothesis handling
+    we have constraints for iN, but no constraints for bitwidths -/
+  wf : ∀ {idx} (ξ : WidthAssignment) /- (ξvalid : valid ξ) -/ (σ : Assignment) (lhs : IR idx),
     let rhs := impl lhs
     (IR.eval ξ σ lhs) ~> (IR.eval ξ σ rhs)
