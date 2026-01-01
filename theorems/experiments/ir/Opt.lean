@@ -3,6 +3,7 @@ import theorems.experiments.ir.opt.M
 import theorems.experiments.ir.opt.Reify
 import theorems.experiments.ir.opt.Denote
 import theorems.experiments.ir.opt.Rewrite
+import theorems.experiments.ir.opt.Eval
 import Lean
 import Qq
 
@@ -25,8 +26,8 @@ theorem addNsw_refine_add {n} (x y : iN n) : x +nsw y ~> x + y := by
     simp [simp_iN]
 
 def addNsw_refine_add' : Rule :=
-  { valid := fun ξ => true
-  , impl := fun ir => match ir with
+  { impl := fun ir =>
+    match ir with
       | IR.addNsw lhs rhs => IR.add lhs rhs
       | _ => ir
 
@@ -36,13 +37,6 @@ def addNsw_refine_add' : Rule :=
       split <;> try rfl
       apply addNsw_refine_add
   }
-
-unsafe def evalImplUnsafe (idx : Nat) (irExpr : Q(IR $idx)) (rule : Q(Rule)) : MetaM (IR idx) := do
-  let expr := q(($rule).impl $irExpr)
-  evalExpr (IR idx) q(IR $idx) expr
-
-@[implemented_by evalImplUnsafe]
-opaque evalImpl (idx : Nat) (irExpr : Q(IR $idx)) (rule : Q(Rule)) : MetaM (IR idx)
 
 elab "⟨⟨" ruleStx:term ":" exprStx:term "⟩⟩" : term => do
   let expr ← Term.withoutErrToSorry do Term.elabTerm exprStx none
@@ -59,7 +53,19 @@ elab "⟨⟨" ruleStx:term ":" exprStx:term "⟩⟩" : term => do
       let reified ← reifyIRExpr resultIdx body
       let irProof ← reified.proof
 
-      let ir' ← evalImpl resultIdx reified.irExpr rule
+      logInfo m!"one: {reified.irExpr}"
+
+      let opt ← evalRule resultIdx reified.irExpr rule
+
+      logInfo m!"two: {toExpr opt.ir'}"
+
+      /- have ir'Q : Q(IR $resultIdx) := toExpr ir'
+
+      /- ir' = rule.impl ir -/
+      let proofType := q($ir'Q = @$(rule).impl $resultIdx $(reified.irExpr))
+
+      /- then, as they're both inductive ASTs this can be proved by just running the code
+        by doing Lean.reduceBool + Lean.ofReduceBool -/
 
       let rhs ← denoteIRExpr ir'
       let rhsProof ← rhs.proof
@@ -73,7 +79,7 @@ elab "⟨⟨" ruleStx:term ":" exprStx:term "⟩⟩" : term => do
       let rwProof ← constructProof reified ir' rhs q(@($rule).wf)
 
       check rwProof
-      logInfo m!"rwProof: {← inferType rwProof}"
+      logInfo m!"rwProof: {← inferType rwProof}" -/
 
     return expr
 

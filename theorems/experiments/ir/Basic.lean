@@ -61,7 +61,7 @@ end IR
 For the implementation to optimise, it needs to know whether or not the width assignment respect the `valid` prop.
 -/
 structure Rule where
-  valid : WidthAssignment → Bool
+  --valid : WidthAssignment → Bool
 
   impl : {idx : Nat} → IR idx → IR idx
 
