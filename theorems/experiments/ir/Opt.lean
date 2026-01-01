@@ -6,7 +6,7 @@ import theorems.experiments.ir.opt.Eval
 import Lean
 import Qq
 
-open Lean Elab Meta
+open Lean Elab Meta Tactic
 open Qq
 
 /-
@@ -90,8 +90,58 @@ elab "⟦" ruleStx:ident ":" exprStx:ident "⟧" : term => do
       check p -/
       mkLambdaFVars fvars denoted.expr
 
+/--
+Given the goal
+```
+⊢ lhs ~> rhs
+```
+this tactic optimises `lhs ~> lhs'` and transforms the goal into
+```
+⊢ lhs' ~> rhs
+```
+-/
+elab "opt0" : tactic => withMainContext do
+  let mvarId ← getMainGoal
+  mvarId.checkNotAssigned `opt
+
+
+  let e ← getMainTarget
+  let e ← instantiateMVars e
+
+  /- the aim is to revert the entire theorem statement
+    until it's just a ∀ with a heap of bvars
+
+    then, just go ahead and do forallTelescope -/
+  /-
+    ⊢ ∀ {n : Nat} (x : iN n), x +nsw x ~> x + x
+
+    into
+      f := fun {n : Nat} (x : iN n) => x +nsw x
+
+    =>
+      f' := fun {n : Nat} (x : iN n) => x + x
+
+    then deduce
+      ⊢ f x ~> f' x
+
+    and hence do transitive chaining
+  -/
+
+
+  /- let (_, lhs, rhs) ← match_expr e with
+  | Rewrite n lhs rhs => pure (n, lhs, rhs)
+  | _ => throwTacticEx `opt mvarId m!"Not a rewrite{indentExpr e}"
+  -/
+
+  sorry
+
+macro "opt " : tactic =>
+  `(tactic| (opt0; try (with_reducible rfl)))
+
 def f {n} (x : iN n) := x +nsw x
 def f' := ⟦addNsw_refine_add' : f⟧
 
 theorem f_opt_f' {n} (x : iN n) : f x ~> f' x := by
-  sorry
+  unfold f f'
+  revert n
+  opt0

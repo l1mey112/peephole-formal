@@ -6,4 +6,3 @@ import theorems.iN.iN_lattice
 import theorems.iN.iN_bitvec
 import theorems.iN.tactics.iN_tactic_blast
 import theorems.iN.tactics.iN_tactic_rewrite
-import theorems.iN.tactics.iN_tactic_opt
