@@ -1,4 +1,4 @@
-import theorems.experiments.ir.opt.Rewrite
+import theorems.experiments.ir.Basic
 import Lean
 import Qq
 
@@ -21,14 +21,11 @@ structure EvalRuleResult (idx : Nat) where
   -/
   proof : Expr
 
+
 /--
 Evaluate the rule. This uses the interpreter then the kernel to prove rfl.
 
-This could get slow, eventually I would want to trust the compiler and use
-`Lean.ofReduceBool` so I can cut out the kernel and just use the interpreter.
-
-Generally, you shouldn't assume that the proof returned is definitional equality,
-as it very well could not be. (TODO check this)
+The proof returned is always definitional equality.
 -/
 def evalRule (idx : Nat) (irExpr : Q(IR $idx)) (rule : Q(Rule)) : MetaM (EvalRuleResult idx) := do
   let ir' ← evalImpl idx irExpr rule
@@ -41,3 +38,16 @@ def evalRule (idx : Nat) (irExpr : Q(IR $idx)) (rule : Q(Rule)) : MetaM (EvalRul
   check proof
 
   return ⟨ir', irExpr', proof⟩
+
+
+/-
+TODO OLD
+
+Evaluate the rule. This uses the interpreter then the kernel to prove rfl.
+
+This could get slow, eventually I would want to trust the compiler and use
+`Lean.ofReduceBool` so I can cut out the kernel and just use the interpreter.
+
+Generally, you shouldn't assume that the proof returned is definitional equality,
+as it very well could not be. (TODO check this)
+-/

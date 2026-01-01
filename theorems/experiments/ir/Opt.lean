@@ -2,7 +2,6 @@ import theorems.iN
 import theorems.experiments.ir.opt.M
 import theorems.experiments.ir.opt.Reify
 import theorems.experiments.ir.opt.Denote
-import theorems.experiments.ir.opt.Rewrite
 import theorems.experiments.ir.opt.Eval
 import Lean
 import Qq
@@ -12,7 +11,7 @@ open Qq
 
 /-
 
-exports the `opt` tactic and `⟨⟨ ... ⟩⟩` for optimisation
+exports the `opt` tactic and `⟦ opt : func ⟧` for optimisation
 
 -/
 
@@ -38,49 +37,61 @@ def addNsw_refine_add' : Rule :=
       apply addNsw_refine_add
   }
 
-elab "⟨⟨" ruleStx:term ":" exprStx:term "⟩⟩" : term => do
-  let expr ← Term.withoutErrToSorry do Term.elabTerm exprStx none
-  if expr.hasExprMVar then
-    throwError m!"Type mismatch: The argument expression{indentD expr}\ncontains metavariables."
+theorem chainOpt_proof {idx} (ξ) (σ) (ir ir' : IR idx) (lhs rhs : iN (ξ.get idx))
+    (lhsProof : IR.eval ξ σ ir = lhs)
+    (rhsProof : IR.eval ξ σ ir' = rhs)
+    (wf : IR.eval ξ σ ir ~> IR.eval ξ σ ir')
+    : lhs ~> rhs  := by
 
-  have rule : Q(Rule) := ← Term.withoutErrToSorry do Term.elabTerm ruleStx q(Rule)
-  if expr.hasExprMVar then
-    throwError m!"Type mismatch: The argument expression{indentD expr}\ncontains metavariables."
+  rw [← lhsProof, ← rhsProof]
+  exact wf
+
+def chainOpt {idx}
+    (reified : ReifiedIR idx) (rule : Q(Rule)) (opt : EvalRuleResult idx) (denoted : DenotedIR idx)
+    : M Expr := do
+
+  let ⟨ξQ, σQ, _, _, _⟩ ← read
+
+  let lhsProof ← reified.proof
+  let wf := q(@$(rule).wf $idx $ξQ $σQ $(reified.irExpr))
+  let rhsProof ← denoted.proof
+
+  /- opt.proof is ignored because at the moment it is definitional equality -/
+  _ := opt
+
+  mkAppM ``chainOpt_proof
+    #[ξQ, σQ, reified.irExpr, denoted.irExpr, reified.originalExpr, denoted.expr, lhsProof, rhsProof, wf]
+
+
+private def elabConstName (stx : TSyntax `ident) (expected : Option Q(Type)) : TermElabM Expr := do
+  /- we're basically "elaborating" `stx` as `@stx` -/
+  let expr := mkConst stx.getId
+  Term.ensureHasType expected expr
+
+
+elab "⟦" ruleStx:ident ":" exprStx:ident "⟧" : term => do
+  let expr' ← elabConstName exprStx none
+  let expr := (← unfoldDefinition? expr').getD expr'
+  have rule : Q(Rule) := ← elabConstName ruleStx (some q(Rule))
+
+  if not expr.isLambda then
+    throwError m!"Expected lambda in expression{indentD expr}"
 
   lambdaTelescope expr fun fvars body => do
     /- body : iN (ξ.get resultIdx) -/
-    let (resultIdx, env) := ← MEnv.of fvars body; M.run' env do
+    let (resultIdx, env) := ← MEnv.of fvars body;
+
+    M.run' env do
       let reified ← reifyIRExpr resultIdx body
-      let irProof ← reified.proof
-
-      logInfo m!"one: {reified.irExpr}"
-
       let opt ← evalRule resultIdx reified.irExpr rule
+      let denoted ← denoteIRExpr opt.ir'
 
-      logInfo m!"two: {toExpr opt.ir'}"
+      /- let p ← chainOpt reified rule opt denoted
+      check p -/
+      mkLambdaFVars fvars denoted.expr
 
-      /- have ir'Q : Q(IR $resultIdx) := toExpr ir'
+def f {n} (x : iN n) := x +nsw x
+def f' := ⟦addNsw_refine_add' : f⟧
 
-      /- ir' = rule.impl ir -/
-      let proofType := q($ir'Q = @$(rule).impl $resultIdx $(reified.irExpr))
-
-      /- then, as they're both inductive ASTs this can be proved by just running the code
-        by doing Lean.reduceBool + Lean.ofReduceBool -/
-
-      let rhs ← denoteIRExpr ir'
-      let rhsProof ← rhs.proof
-
-      check irProof
-      check rhsProof
-
-      logInfo m!"reifyProof: {← inferType irProof}"
-      logInfo m!"denoteProof: {← inferType rhsProof}"
-
-      let rwProof ← constructProof reified ir' rhs q(@($rule).wf)
-
-      check rwProof
-      logInfo m!"rwProof: {← inferType rwProof}" -/
-
-    return expr
-
-def f' := ⟨⟨addNsw_refine_add' : fun {n} (x : iN n) => x +nsw x⟩⟩
+theorem f_opt_f' {n} (x : iN n) : f x ~> f' x := by
+  sorry

@@ -78,4 +78,8 @@ where
   /- body = IR.eval ξ σ lhs +nsw (IR.eval ξ σ rhs) =Q IR.eval ξ σ (IR.addNsw lhs rhs) -/
   /- these are definitionally equal, so it's fine anyway and IR.eval is on the outside -/
   let proof := mkApp7 congrLemmaQ nQ lhsExpr rhsExpr lhsEval rhsEval lhsProof rhsProof
+
+  let actualType ← mkEq (← M.mkEvalIR idx ξQ σQ irExpr) body
+  let proof := mkExpectedPropHint proof actualType
+
   return ⟨body, irExpr, pure proof⟩
