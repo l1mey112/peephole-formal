@@ -100,48 +100,48 @@ this tactic optimises `lhs ~> lhs'` and transforms the goal into
 ⊢ lhs' ~> rhs
 ```
 -/
-elab "opt0" : tactic => withMainContext do
+elab "opt0" ruleStx:ident : tactic => withMainContext do
+  have rule : Q(Rule) := ← elabConstName ruleStx (some q(Rule))
+
   let mvarId ← getMainGoal
   mvarId.checkNotAssigned `opt
 
-
+  let lctx ← Lean.MonadLCtx.getLCtx
   let e ← getMainTarget
   let e ← instantiateMVars e
 
-  /- the aim is to revert the entire theorem statement
-    until it's just a ∀ with a heap of bvars
-
-    then, just go ahead and do forallTelescope -/
-  /-
-    ⊢ ∀ {n : Nat} (x : iN n), x +nsw x ~> x + x
-
-    into
-      f := fun {n : Nat} (x : iN n) => x +nsw x
-
-    =>
-      f' := fun {n : Nat} (x : iN n) => x + x
-
-    then deduce
-      ⊢ f x ~> f' x
-
-    and hence do transitive chaining
-  -/
-
-
-  /- let (_, lhs, rhs) ← match_expr e with
+  let (_, lhs, rhs) ← match_expr e with
   | Rewrite n lhs rhs => pure (n, lhs, rhs)
   | _ => throwTacticEx `opt mvarId m!"Not a rewrite{indentExpr e}"
-  -/
 
-  sorry
+  /- TODO make it configurable whether or not you ignore certain fvars -/
+  let (resultIdx, env) := ← MEnv.of lctx.getFVars lhs
 
-macro "opt " : tactic =>
-  `(tactic| (opt0; try (with_reducible rfl)))
+  /- proof : lhs ~> lhs' -/
+  let ⟨lhs', proof⟩ ← M.run' env do
+    let reified ← reifyIRExpr resultIdx lhs
+    let opt ← evalRule resultIdx reified.irExpr rule
+    let denoted ← denoteIRExpr opt.ir'
+
+    let p ← chainOpt reified rule opt denoted
+    let lhs' := denoted.expr
+    return (⟨lhs', p⟩ : Expr × Expr)
+
+  have ngoalType : Q(Prop) := ← mkAppM ``Rewrite #[lhs', rhs]
+  let ngoal ← mkFreshExprMVar (some ngoalType)
+
+  /- refine (Rewrite.trans (lhs ~> lhs') _? : lhs ~> rhs) -/
+  let proof' ← mkAppM ``Rewrite.trans #[proof, ngoal]
+  mvarId.assign proof'
+
+  replaceMainGoal [ngoal.mvarId!]
 
 def f {n} (x : iN n) := x +nsw x
 def f' := ⟦addNsw_refine_add' : f⟧
 
+macro "opt" ruleStx:ident : tactic =>
+  `(tactic| (opt0 $ruleStx; try (with_reducible rfl)))
+
 theorem f_opt_f' {n} (x : iN n) : f x ~> f' x := by
   unfold f f'
-  revert n
-  opt0
+  opt addNsw_refine_add'

@@ -95,7 +95,7 @@ Accepts expressions of the form
 fun {n} ... {m} (x : iN n) ... (z : iN m) : iN n => ...
 ```
 such that the entire expression is of type `iN (ξ.get result_idx)`.
---/
+-/
 def MEnv.of (fvars : Array Expr) (body : Expr) : MetaM (Nat × MEnv) := do
   /- map each type iN n -> idx of WidthAssignment -/
   /- these are fvars being m, n, ... -/
@@ -120,7 +120,7 @@ def MEnv.of (fvars : Array Expr) (body : Expr) : MetaM (Nat × MEnv) := do
         | throwError "reifyExpr: unbound, not previous free variable in Nat"
 
       assignment := assignment.push (fvar.fvarId!, assignmentIdx)
-    | _ => throwError "reifyExpr: unsupported type"
+    | _ => pure () /- throwError "reifyExpr: unsupported type" -/
 
   let body_type ← inferType body
   let resultIdx ← match_expr body_type with
