@@ -1,5 +1,5 @@
-import theorems.experiments.ir.Basic
-import theorems.experiments.ir.opt.M
+import theorems.Opt.Basic
+import theorems.Opt.M
 
 import Lean
 import Qq
@@ -24,10 +24,25 @@ partial def reifyIRExpr (idx : Nat) (body : Expr) : M (ReifiedIR idx) := do
 
   have bodyQ : Q(iN $nQ) := body
 
+  /- TODO make these smaller and nicer, less repeated code (defeq stuff) -/
+
   match_expr body with
   | iN.poison _ =>
 
     let ir : IR idx := .poison
+    have irExpr : Q(IR $idx) := toExpr ir
+
+    have lhs : Q(iN $nQ) := q(IR.eval $ξQ $σQ $irExpr)
+    have : $lhs =Q $bodyQ := .unsafeIntro
+
+    return ⟨ir, toExpr ir, body, pure q(rfl : $lhs = $bodyQ)⟩
+
+  | iN.bitvec _ v =>
+
+    let some ⟨nv, _⟩ := (← getOfNatValue? v ``BitVec)
+      | throwError "reifyIRExpr: invalid literal {v}"
+
+    let ir : IR idx := .const nv
     have irExpr : Q(IR $idx) := toExpr ir
 
     have lhs : Q(iN $nQ) := q(IR.eval $ξQ $σQ $irExpr)

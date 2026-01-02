@@ -2,9 +2,31 @@ import Lean
 import theorems.iN.iN_def
 import theorems.iN.iN_rewrite
 
-import theorems.iN.tactics.shared
-
 open Lean Elab Tactic Meta
+
+/-- Proves `f poison = poison`, for `f (poison : iN n) = (poison : iN n')`. -/
+def proveCongruence (motive : Expr) (n n' : Expr) : MetaM Expr := do
+  /- TODO make this function prove things nicely instead of unwrapping
+    things down to the bone with simp which is slow and creates bloated
+    proof terms -/
+
+  let poison_app := mkApp motive $ mkApp (.const ``poison []) n
+  let goalType ← mkEq poison_app $ mkApp (.const ``poison []) n'
+
+  let proofMVar ← mkFreshExprMVar goalType .synthetic `h_cong_proof
+
+  let ctx ← Simp.mkContext
+    (config := { beta := true })
+    (simpTheorems := #[← getSimpTheorems, ← simpIN.getTheorems])
+    (congrTheorems := (← getSimpCongrTheorems))
+  let (result?, _) ← simpGoal proofMVar.mvarId! ctx
+
+  if let some _ := result? then
+    /- throwTactic `opt_rewrite x
+      m!"unable to prove congruence goal `motive poison = poison` automatically with `simp [simp_iN]`" -/
+    throwError m!"unable to prove congruence goal `motive poison = poison` automatically with `simp [simp_iN]`{indentD motive}"
+
+  instantiateMVars proofMVar
 
 /-- On a goal of `lhs ~> rhs`, apply a rewrite of the form `x ~> y`.  -/
 elab "opt_rewrite" t:term : tactic => withMainContext do
@@ -16,7 +38,8 @@ elab "opt_rewrite" t:term : tactic => withMainContext do
     | Rewrite n lhs rhs => return (n, lhs, rhs)
     | _ => throwTacticEx `opt_rewrite mvarId m!"not a rewrite{indentExpr e}"
 
-  let heq ← elabTerm t none true
+  let heq ← Term.withoutErrToSorry do
+    elabTerm t (some $ mkSort 0) true
 
   let heqType ← instantiateMVars (← inferType heq)
   let (newMVars, _, heqType) ← forallMetaTelescopeReducing heqType
@@ -70,6 +93,8 @@ elab "opt_rewrite" t:term : tactic => withMainContext do
   let finalGoalId ← newGoalId.change finalGoalType
 
   replaceMainGoal [finalGoalId]
+
+/- TODO when the identifier doesn't exist, nothing happens. fix this -/
 
 macro "opt_rw " t:term : tactic =>
   `(tactic| (opt_rewrite $t; try (with_reducible rfl)))

@@ -1,4 +1,4 @@
-import theorems.experiments.ir.Basic
+import theorems.Opt.Basic
 import Lean
 import Qq
 

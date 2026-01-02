@@ -1,5 +1,5 @@
-import theorems.experiments.ir.Basic
-import theorems.experiments.ir.opt.Reflect
+import theorems.Opt.Basic
+import theorems.Opt.Reflect
 
 import Lean
 import Qq

@@ -14,6 +14,8 @@ initialize simpINBitvec : SimpExtension ←
   registerSimpAttr `simp_iN_bitvec
     "simp lemmas unwrapping instructions"
 
+/- TODO possibly remove after introducing `Opt` -/
+
 initialize validInstructions : SimplePersistentEnvExtension (Name) (List Name) ←
   let addEntryFn | m, name => name :: m
 

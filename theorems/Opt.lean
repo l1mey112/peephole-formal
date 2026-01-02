@@ -1,8 +1,8 @@
 import theorems.iN
-import theorems.experiments.ir.opt.M
-import theorems.experiments.ir.opt.Reify
-import theorems.experiments.ir.opt.Denote
-import theorems.experiments.ir.opt.Eval
+import theorems.Opt.M
+import theorems.Opt.Reify
+import theorems.Opt.Denote
+import theorems.Opt.Eval
 import Lean
 import Qq
 
@@ -14,28 +14,6 @@ open Qq
 exports the `opt` tactic and `⟦ opt : func ⟧` for optimisation
 
 -/
-
-theorem addNsw_refine_add {n} (x y : iN n) : x +nsw y ~> x + y := by
-  poison_unroll x y => a b
-
-  by_cases h : a.saddOverflow b
-  . rw [addNsw_saddOverflow_bitvec h]
-    exact Rewrite.poison_rewrite (bitvec a + bitvec b)
-  . rw [addNsw_not_saddOverflow_bitvec_eq_add h]
-    simp [simp_iN]
-
-def addNsw_refine_add' : Rule :=
-  { impl := fun ir =>
-    match ir with
-      | IR.addNsw lhs rhs => IR.add lhs rhs
-      | _ => ir
-
-  , wf := by
-      intros idx ξ σ lhs
-
-      split <;> try rfl
-      apply addNsw_refine_add
-  }
 
 theorem chainOpt_proof {idx} (ξ) (σ) (ir ir' : IR idx) (lhs rhs : iN (ξ.get idx))
     (lhsProof : IR.eval ξ σ ir = lhs)
@@ -136,12 +114,5 @@ elab "opt0" ruleStx:ident : tactic => withMainContext do
 
   replaceMainGoal [ngoal.mvarId!]
 
-def f {n} (x : iN n) := x +nsw x
-def f' := ⟦addNsw_refine_add' : f⟧
-
 macro "opt" ruleStx:ident : tactic =>
   `(tactic| (opt0 $ruleStx; try (with_reducible rfl)))
-
-theorem f_opt_f' {n} (x : iN n) : f x ~> f' x := by
-  unfold f f'
-  opt addNsw_refine_add'

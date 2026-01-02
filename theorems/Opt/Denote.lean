@@ -1,5 +1,5 @@
-import theorems.experiments.ir.Basic
-import theorems.experiments.ir.opt.M
+import theorems.Opt.Basic
+import theorems.Opt.M
 
 import Lean
 import Qq
@@ -40,10 +40,24 @@ partial def denoteIRExpr {idx} (ir : IR idx) : M (DenotedIR idx) := do
     have : $lhs =Q $bodyQ := .unsafeIntro
     return ⟨bodyQ, toExpr ir, pure q(rfl : $lhs = $bodyQ)⟩
 
+  | .const nv =>
+
+    /- @OfNat.ofNat (BitVec n) 5 BitVec.instOfNat : BitVec n -/
+    let nvQ : Q(Nat) := mkRawNatLit nv
+    let ofNatEnc : Q(BitVec $nQ) := q(@OfNat.ofNat (BitVec (($ξQ).get $idx)) $nvQ BitVec.instOfNat)
+
+    let irExpr : Q(IR $idx) := toExpr ir
+
+    have lhs : Q(iN $nQ) := q(IR.eval $ξQ $σQ $irExpr)
+    have bodyQ : Q(iN $nQ) := q(iN.bitvec $ofNatEnc)
+
+    have : $lhs =Q $bodyQ := .unsafeIntro
+    return ⟨bodyQ, irExpr, pure q(rfl : $lhs = $bodyQ)⟩
+
   | .add lhsIR rhsIR => denoteBinop lhsIR rhsIR ``IR.add ``iN.add ``add_congr
   | .addNsw lhsIR rhsIR => denoteBinop lhsIR rhsIR ``IR.addNsw ``iN.addNsw ``addNsw_congr
 
-  | _ => throwError "unreachable"
+  --| _ => throwError "unreachable"
 where
   denoteBinop (lhsIR rhsIR : IR idx) (consName : Name) (instName : Name) (congrLemma : Name)
     : M (DenotedIR idx) := do

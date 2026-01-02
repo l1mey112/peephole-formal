@@ -68,5 +68,4 @@ structure Rule where
   /- TODO implement proper hypothesis handling
     we have constraints for iN, but no constraints for bitwidths -/
   wf : ∀ {idx} (ξ : WidthAssignment) /- (ξvalid : valid ξ) -/ (σ : Assignment) (lhs : IR idx),
-    let rhs := impl lhs
-    (IR.eval ξ σ lhs) ~> (IR.eval ξ σ rhs)
+    (IR.eval ξ σ lhs) ~> (IR.eval ξ σ (impl lhs))
