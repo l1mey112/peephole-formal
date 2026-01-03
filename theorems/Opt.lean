@@ -40,12 +40,13 @@ def chainOpt {idx}
   mkAppM ``chainOpt_proof
     #[ξQ, σQ, reified.irExpr, denoted.irExpr, reified.originalExpr, denoted.expr, lhsProof, rhsProof, wf]
 
-
 private def elabConstName (stx : TSyntax `ident) (expected : Option Q(Type)) : TermElabM Expr := do
-  /- we're basically "elaborating" `stx` as `@stx` -/
-  let expr := mkConst stx.getId
+  /- much better than `let name := stx.getId` as this is actually taken
+    into consideration by the infoview -/
+  /- you can see this also being used by `withRWRulesSeq` for the `rewrite` tactic -/
+  let name ← Elab.realizeGlobalConstNoOverloadWithInfo stx expected
+  let expr := mkConst name
   Term.ensureHasType expected expr
-
 
 elab "⟦" ruleStx:ident ":" exprStx:ident "⟧" : term => do
   let expr' ← elabConstName exprStx none

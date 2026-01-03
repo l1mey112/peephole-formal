@@ -50,7 +50,9 @@ elab "opt_rewrite" t:term : tactic => withMainContext do
     | _ => throwTacticEx `opt_rewrite mvarId m!"not a rewrite{indentExpr e}"
 
   let heq ← Term.withoutErrToSorry do
-    elabTerm t (some $ mkSort 0) true
+    elabTerm t none true
+  if heq.hasSyntheticSorry then
+    throwAbortTactic
 
   let heqType ← instantiateMVars (← inferType heq)
   let (newMVars, _, heqType) ← forallMetaTelescopeReducing heqType
