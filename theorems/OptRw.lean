@@ -28,7 +28,18 @@ def proveCongruence (motive : Expr) (n n' : Expr) : MetaM Expr := do
 
   instantiateMVars proofMVar
 
-/-- On a goal of `lhs ~> rhs`, apply a rewrite of the form `x ~> y`.  -/
+/--
+On a goal of `lhs ~> rhs`, apply a rewrite of the form `x ~> y`.
+-/
+syntax (name := optRewrite) "opt_rewrite" term : tactic
+
+/--
+On a goal of `lhs ~> rhs`, apply a rewrite of the form `x ~> y`.
+`opt_rw` is like `opt_rewrite` but also tries to close the goal with reducible `rfl`
+and `apply Rewrite.poison_rewrite` to close goals of `poison ~> y`.
+-/
+syntax (name := optRw) "opt_rw" term : tactic
+
 elab "opt_rewrite" t:term : tactic => withMainContext do
   let mvarId ← getMainGoal
   mvarId.checkNotAssigned `opt_rewrite
@@ -97,4 +108,4 @@ elab "opt_rewrite" t:term : tactic => withMainContext do
 /- TODO when the identifier doesn't exist, nothing happens. fix this -/
 
 macro "opt_rw " t:term : tactic =>
-  `(tactic| (opt_rewrite $t; try (with_reducible rfl)))
+  `(tactic| (opt_rewrite $t; try rewite_trivial))

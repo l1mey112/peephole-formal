@@ -6,6 +6,7 @@ LLVM-style integers with poison value.
 inductive iN (bits : Nat) : Type where
   | bitvec : BitVec bits → iN bits
   | poison : iN bits
+deriving DecidableEq, Repr
 
 export iN (poison bitvec)
 
@@ -76,16 +77,22 @@ def pBind {n m} (x : iN n) (f : BitVec n → iN m) : iN m :=
 def pBind₂ {n m k} (x : iN n) (y : iN m) (f : BitVec n → BitVec m → iN k) : iN k :=
   pBind x (fun a => pBind y (fun b => f a b))
 
-@[simp]
+@[simp, grind =]
 theorem poison_pBind {n m} {f : BitVec n → iN m} :
   pBind poison f = poison := rfl
 
-@[simp]
+@[simp, grind =]
 theorem bitvec_pBind {n m} {a : BitVec n} {f : BitVec n → iN m} :
   pBind (bitvec a) f = f a := rfl
 
-@[simp]
+@[simp, grind =]
 theorem pBind_poison {n m} {x : iN n} : pBind x (fun _ => (poison : iN m)) = poison := by
+  cases x <;> rfl
+
+@[simp, grind =]
+theorem pBind_pure {n} (x : iN n) :
+    pBind x bitvec = x := by
+
   cases x <;> rfl
 
 @[simp]
@@ -108,25 +115,25 @@ theorem pBind_cond_poison_right_eq_cond_pBind {n m} {c : Bool} {x : iN n} {f : B
     pBind (cond c x poison) f = cond c (pBind x f) poison := by
   cases c <;> rfl
 
-@[simp]
+@[simp, grind =]
 theorem pBind₂_poison_left {n m k} {y : iN m} {f : BitVec n → BitVec m → iN k} :
   pBind₂ poison y f = poison := rfl
 
-@[simp]
+@[simp, grind =]
 theorem pBind₂_poison_right {n m k} {x : iN n} {f : BitVec n → BitVec m → iN k} :
     pBind₂ x poison f = poison := by
   cases x <;> rfl
 
-@[simp]
+@[simp, grind =]
 theorem pBind₂_bitvec_left {n m k} {a : BitVec n} {y : iN m} {f : BitVec n → BitVec m → iN k} :
     pBind₂ (bitvec a) y f = pBind y (fun b => f a b) := rfl
 
-@[simp]
+@[simp, grind =]
 theorem pBind₂_bitvec_right {n m k} {x : iN n} {b : BitVec m} {f : BitVec n → BitVec m → iN k} :
     pBind₂ x (bitvec b) f = pBind x (fun a => f a b) := by
   cases x <;> rfl
 
-@[simp]
+@[simp, grind =]
 theorem pBind₂_bitvec_bitvec {n m k} {a : BitVec n} {b : BitVec m} {f : BitVec n → BitVec m → iN k} :
     pBind₂ (bitvec a) (bitvec b) f = f a b := rfl
 
@@ -165,12 +172,11 @@ theorem pBind₂_cond_poison_both_eq_cond_pBind₂ {n m k} {c : Bool} {x : iN n}
     pBind₂ (cond c poison x) (cond c poison y) f = cond c poison (pBind₂ x y f) := by
   cases c <;> simp
 
-@[grind =]
 theorem pBind₂_comm {n m k} {x : iN n} {y : iN m} {f : BitVec n → BitVec m → iN k} :
     pBind₂ x y f = pBind₂ y x (fun b a => f a b) := by
   cases x <;> cases y <;> rfl
 
-@[simp, grind]
+@[simp, grind =]
 theorem pBind_assoc {n m k} {x : iN n}
     {f : BitVec n → iN m} {g : BitVec m → iN k} :
     pBind (pBind x f) g = pBind x (fun a => pBind (f a) g) := by

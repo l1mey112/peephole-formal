@@ -17,6 +17,22 @@ macro_rules
       try simp [ofNat_eq_bitvec_ofNat] at * /- simp hypotheses with bitvec -/
     )
 
+/-- `poison_unroll_simp x y z => a b c`
+
+Performs `cases x; cases y; cases z`, solves every `poison` branch with
+`simp [simp_iN]`, and in the unique `bitvec` branch introduces the
+variables named `a b c` and performs `simp [simp_iN]`. -/
+syntax "poison_unroll_simp" (ppSpace colGt ident)* " =>" (ppSpace colGt ident)* : tactic
+macro_rules
+| `(tactic| poison_unroll_simp $xs:ident* => $ys:ident*) =>
+  `(tactic|
+    ($[cases $xs:ident with
+      | bitvec $ys:ident => ?_
+      | poison => simp [simp_iN]];*);
+
+      try simp [simp_iN] at * /- simp all with bitvec -/
+    )
+
 syntax "bitvec_arguments" : tactic
 macro_rules
 | `(tactic| bitvec_arguments) =>
