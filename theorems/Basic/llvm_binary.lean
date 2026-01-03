@@ -1,4 +1,5 @@
 import theorems.iN
+import theorems.OptRw
 
 /- # Poison Propagation -/
 
@@ -70,6 +71,65 @@ theorem addNw_refine_addNuw : x +nw y ~> x +nsw y := by
   . rw [uaddOverflow_addNw_eq_poison (show a.uaddOverflow b by simp [h])]
     apply Rewrite.poison_rewrite
   · rw [not_uaddOverFlow_addNw_eq_addNuw (show ¬a.uaddOverflow b by simp [h])]
+
+/- # AC Lemmas for Add -/
+
+theorem add_comm {x y : iN n} : x + y = y + x := by
+  poison_unroll' x y
+  rw [BitVec.add_comm]
+
+theorem addNsw_comm {x y : iN n} : x +nsw y = y +nsw x := by
+  poison_unroll' x y
+  simp_all [simp_iN, BitVec.saddOverflow_comm, BitVec.add_comm]
+
+theorem addNuw_comm {x y : iN n} : x +nuw y = y +nuw x := by
+  poison_unroll' x y
+  simp_all [simp_iN, BitVec.uaddOverflow_comm, BitVec.add_comm]
+
+theorem addNw_comm {x y : iN n} : x +nw y = y +nw x := by
+  poison_unroll' x y
+  simp_all [simp_iN, BitVec.add_comm,
+    BitVec.saddOverflow_comm, BitVec.uaddOverflow_comm]
+
+theorem add_assoc {x y z : iN n} : (x + y) + z = x + (y + z) := by
+  poison_unroll' x y z
+  rw [BitVec.add_assoc]
+
+theorem addNsw_assoc_left_refine
+  : x +nsw (y +nsw z) ~> (x + y) + z := by
+
+  repeat opt_rw addNsw_refine
+  rw [add_assoc]
+
+theorem addNsw_assoc_right_refine
+  : (x +nsw y) +nsw z ~> x + (y + z) := by
+
+  repeat opt_rw addNsw_refine
+  rw [add_assoc]
+
+theorem addNuw_assoc_left_refine
+  : x +nuw (y +nuw z) ~> (x + y) + z := by
+
+  repeat opt_rw addNuw_refine
+  rw [add_assoc]
+
+theorem addNuw_assoc_right_refine
+  : (x +nuw y) +nuw z ~> x + (y + z) := by
+
+  repeat opt_rw addNuw_refine
+  rw [add_assoc]
+
+theorem addNw_assoc_left_refine
+  : x +nw (y +nw z) ~> (x + y) + z := by
+
+  repeat opt_rw addNw_refine
+  rw [add_assoc]
+
+theorem addNw_assoc_right_refine
+  : (x +nw y) +nw z ~> x + (y + z) := by
+
+  repeat opt_rw addNw_refine
+  rw [add_assoc]
 
 /- # Basic Lemmas for Sub -/
 
@@ -174,6 +234,65 @@ theorem mulNw_refine_mulNuw : x *nw y ~> x *nsw y := by
   . rw [umulOverflow_mulNw_eq_poison (show a.umulOverflow b by simp [h])]
     apply Rewrite.poison_rewrite
   · rw [not_umulOverFlow_mulNw_eq_mulNuw (show ¬a.umulOverflow b by simp [h])]
+
+/- # AC Lemmas for Mul -/
+
+theorem mul_comm {x y : iN n} : x * y = y * x := by
+  poison_unroll' x y
+  rw [BitVec.mul_comm]
+
+theorem mulNsw_comm {x y : iN n} : x *nsw y = y *nsw x := by
+  poison_unroll' x y
+  simp_all [simp_iN, BitVec.smulOverflow_comm, BitVec.mul_comm]
+
+theorem mulNuw_comm {x y : iN n} : x *nuw y = y *nuw x := by
+  poison_unroll' x y
+  simp_all [simp_iN, BitVec.umulOverflow_comm, BitVec.mul_comm]
+
+theorem mulNw_comm {x y : iN n} : x *nw y = y *nw x := by
+  poison_unroll' x y
+  simp_all [simp_iN, BitVec.mul_comm,
+    BitVec.smulOverflow_comm, BitVec.umulOverflow_comm]
+
+theorem mul_assoc {x y z : iN n} : (x * y) * z = x * (y * z) := by
+  poison_unroll' x y z
+  rw [BitVec.mul_assoc]
+
+theorem mulNsw_assoc_left_refine
+  : x *nsw (y *nsw z) ~> (x * y) * z := by
+
+  repeat opt_rw mulNsw_refine
+  rw [mul_assoc]
+
+theorem mulNsw_assoc_right_refine
+  : (x *nsw y) *nsw z ~> x * (y * z) := by
+
+  repeat opt_rw mulNsw_refine
+  rw [mul_assoc]
+
+theorem mulNuw_assoc_left_refine
+  : x *nuw (y *nuw z) ~> (x * y) * z := by
+
+  repeat opt_rw mulNuw_refine
+  rw [mul_assoc]
+
+theorem mulNuw_assoc_right_refine
+  : (x *nuw y) *nuw z ~> x * (y * z) := by
+
+  repeat opt_rw mulNuw_refine
+  rw [mul_assoc]
+
+theorem mulNw_assoc_left_refine
+  : x *nw (y *nw z) ~> (x * y) * z := by
+
+  repeat opt_rw mulNw_refine
+  rw [mul_assoc]
+
+theorem mulNw_assoc_right_refine
+  : (x *nw y) *nw z ~> x * (y * z) := by
+
+  repeat opt_rw mulNw_refine
+  rw [mul_assoc]
 
 /- # Basic Lemmas for Div -/
 

@@ -11,6 +11,16 @@ theorem BitVec.uaddOverflow_comm {n} {a b : BitVec n}
 
   grind [BitVec.uaddOverflow]
 
+theorem BitVec.smulOverflow_comm {n} {a b : BitVec n}
+    : a.smulOverflow b = b.smulOverflow a := by
+
+  grind [BitVec.smulOverflow]
+
+theorem BitVec.umulOverflow_comm {n} {a b : BitVec n}
+    : a.umulOverflow b = b.umulOverflow a := by
+
+  grind [BitVec.umulOverflow]
+
 theorem BitVec.saddOverflow_iff_or_unfold {n} (x y : BitVec n)
     : x.saddOverflow y
       ↔ x.toInt + y.toInt ≥ 2 ^ (n - 1) ∨ x.toInt + y.toInt < - 2 ^ (n - 1) := by
