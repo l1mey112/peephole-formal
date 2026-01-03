@@ -113,14 +113,21 @@ def not {n} (x : iN n) : iN n := pBind x (fun a => bitvec (~~~a))
 @[simp_iN]
 def xor {n} (x y : iN n) : iN n := pBind₂ x y (fun a b => bitvec (a ^^^ b))
 
-/- we write ^' for XOR instead of ^ as that is taken by exponential.
-  this might be a stupid decision, but can be changed later on
-  - just find and replace "^'" -/
+@[simp_iN]
+instance : HAnd (iN n) (iN n) (iN n) where
+  hAnd := iN.and
 
-infixl:60 " & " => iN.and
-infixl:55 " | " => iN.or
-prefix:100 "~" => iN.not
-infixl:58 " ^' " => iN.xor
+@[simp_iN]
+instance : HOr (iN n) (iN n) (iN n) where
+  hOr := iN.or
+
+@[simp_iN]
+instance : Complement (iN n) where
+  complement := iN.not
+
+@[simp_iN]
+instance : HXor (iN n) (iN n) (iN n) where
+  hXor := iN.xor
 
 end iN
 
@@ -133,9 +140,9 @@ section norm_eqs_simp_iN
 @[simp_iN] theorem lshrExact_eq_def : x >>ᵤexact y = iN.lshrExact x y := by rfl
 @[simp_iN] theorem ashr_eq_def : x >>ₛ y = iN.ashr x y := by rfl
 @[simp_iN] theorem ashrExact_eq_def : x >>ₛexact y = iN.ashrExact x y := by rfl
-@[simp_iN] theorem and_eq_def : x & y = iN.and x y := by rfl
-@[simp_iN] theorem or_eq_def : x | y = iN.or x y := by rfl
-@[simp_iN] theorem not_eq_def : ~x = iN.not x := by rfl
-@[simp_iN] theorem xor_eq_def : x ^' y = iN.xor x y := by rfl
+@[simp_iN] theorem and_eq_def : x &&& y = iN.and x y := by rfl
+@[simp_iN] theorem or_eq_def : x ||| y = iN.or x y := by rfl
+@[simp_iN] theorem not_eq_def : ~~~x = iN.not x := by rfl
+@[simp_iN] theorem xor_eq_def : x ^^^ y = iN.xor x y := by rfl
 
 end norm_eqs_simp_iN

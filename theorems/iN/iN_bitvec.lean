@@ -73,3 +73,51 @@ theorem BitVec.usubOverflow_zero {n} (x : BitVec n)
   unfold BitVec.usubOverflow
   rw [decide_eq_false]
   simp
+
+
+/- theorem BitVec.smulOverflow_one'0 (x : BitVec 0)
+    : x.smulOverflow 0 = false := by bv_decide
+
+theorem BitVec.smulOverflow_one'1 (x : BitVec 1)
+    : x.smulOverflow 1#1 = false := by bv_decide
+
+theorem BitVec.smulOverflow_one'2 (x : BitVec 2)
+    : x.smulOverflow 1#2 = false := by bv_decide
+
+theorem BitVec.smulOverflow_one'16 (x : BitVec 16)
+    : x.smulOverflow 1#16 = false := by bv_decide
+
+theorem BitVec.smulOverflow_one'32 (x : BitVec 32)
+    : x.smulOverflow 1#32 = false := by bv_decide -/
+
+/- @[simp]
+theorem BitVec.smulOverflow_one {n} (x : BitVec n)
+    : x.smulOverflow 1#n = false := by
+
+  unfold BitVec.smulOverflow
+  by_cases h : n = 0
+  . subst h; simp
+
+  by_cases h : n = 1
+  . subst h; simp;
+    by_cases h : x = 0#1
+    . subst h; simp;
+    . have h2 : x = 1#1 := by
+        bv_omega
+
+      subst h2
+
+  have : x.toInt * (1#n).toInt = x.toInt := by
+
+    rw [BitVec.toInt_one]
+
+    exact Int.mul_one x.toInt
+
+    simp [h]
+
+
+  --simp only [Bool.false_or, decide_eq_false_iff_not, Int.not_lt]
+
+
+
+  simp [] -/
