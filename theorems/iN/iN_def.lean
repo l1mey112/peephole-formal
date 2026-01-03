@@ -33,11 +33,17 @@ macro_rules
   | `(⟦$x : $n⟧) => `(@iN.bitvec $n $x)
   | `(⟦$x⟧) => `(iN.bitvec $x)
 
-/- @[simp_iN]
+@[simp]
 theorem ofNat_eq_bitvec_ofNat {n val} :
-  (no_index (OfNat.ofNat val) : iN n) = iN.bitvec val := rfl -/
+  (no_index (OfNat.ofNat val) : iN n) = iN.bitvec (OfNat.ofNat val : BitVec n) := rfl
 
 namespace iN
+
+@[app_unexpander bitvec]
+def delab_iN : Lean.PrettyPrinter.Unexpander
+  | `(@bitvec $n $x) => `(⟦$x : $n⟧)
+  | `($_bitvec $x) => `(⟦$x⟧)
+  | _ => throw ()
 
 @[simp, grind =]
 theorem bitvec_inj {n} {a b : BitVec n} :
