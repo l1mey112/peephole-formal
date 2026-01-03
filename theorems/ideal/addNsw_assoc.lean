@@ -17,14 +17,14 @@ theorem saddOverflow_same_sign_implies_sum {n} {a b c : BitVec n}
       rw [BitVec.toInt_add_of_not_saddOverflow hbc']
       omega
 
-    rw [saddOverflow_iff_or_unfold] at ⊢ hab; left
+    rw [BitVec.saddOverflow_iff_or_unfold] at ⊢ hab; left
     obtain habl | habr := hab <;> omega
 
   . have h : (b + c).toInt ≤ b.toInt := by
       rw [BitVec.toInt_add_of_not_saddOverflow hbc']
       omega
 
-    rw [saddOverflow_iff_or_unfold] at ⊢ hab; right
+    rw [BitVec.saddOverflow_iff_or_unfold] at ⊢ hab; right
 
     obtain habl | habr := hab;
     . /- contradiction, by assumption -/

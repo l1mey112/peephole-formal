@@ -11,7 +11,7 @@ theorem uaddOverflow_implies_sum {n} {a b c : BitVec n}
     rw [BitVec.toNat_add_of_not_uaddOverflow hbc']
     omega
 
-  rw [uaddOverflow_iff_unfold] at ⊢ hab
+  rw [BitVec.uaddOverflow_iff_unfold] at ⊢ hab
   omega
 
 theorem addNuw_assoc {n} {x y z : iN n}

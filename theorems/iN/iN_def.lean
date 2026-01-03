@@ -22,9 +22,20 @@ instance : Coe (BitVec n) (iN n) where
 instance : Inhabited (iN n) where
   default := poison
 
-@[simp_iN]
+/--
+BitVec literal syntax for `iN`.
+
+In rewrites, these are stand-ins for constants to be matched.
+-/
+syntax "⟦" term (":" term)? "⟧" : term
+
+macro_rules
+  | `(⟦$x : $n⟧) => `(@iN.bitvec $n $x)
+  | `(⟦$x⟧) => `(iN.bitvec $x)
+
+/- @[simp_iN]
 theorem ofNat_eq_bitvec_ofNat {n val} :
-  (no_index (OfNat.ofNat val) : iN n) = iN.bitvec val := rfl
+  (no_index (OfNat.ofNat val) : iN n) = iN.bitvec val := rfl -/
 
 namespace iN
 

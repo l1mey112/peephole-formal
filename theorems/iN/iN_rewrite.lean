@@ -14,6 +14,39 @@ inductive Rewrite {n} : iN n → iN n → Prop where
 
 @[inherit_doc] infix:50 " ~> "  => Rewrite
 
+syntax "poison_unroll0" (ppSpace colGt ident)* " =>" (ppSpace colGt ident)* : tactic
+macro_rules
+| `(tactic| poison_unroll0 $xs:ident* => $ys:ident*) =>
+  `(tactic|
+    ($[cases $xs:ident with
+      | bitvec $ys:ident => ?_
+      | poison => simp [simp_iN]];*);
+    )
+
+/-- `poison_unroll x y z => a b c`
+
+Performs `cases x; cases y; cases z`, solves every `poison` branch with
+`simp [simp_iN]`, and in the unique `bitvec` branch introduces the
+variables named `a b c`. -/
+syntax "poison_unroll" (ppSpace colGt ident)* " =>" (ppSpace colGt ident)* : tactic
+macro_rules
+| `(tactic| poison_unroll $xs:ident* => $ys:ident*) =>
+  `(tactic|
+      (poison_unroll0 $xs:ident* => $ys:ident*);
+      try simp [ofNat_eq_bitvec_ofNat] at * /- simp hypotheses with bitvec -/
+    )
+
+/-- `poison_unroll' x y z`
+
+Performs `cases x; cases y; cases z`, solves every branch with `simp [simp_iN]`.
+-/
+syntax "poison_unroll'" (ppSpace colGt ident)* : tactic
+macro_rules
+| `(tactic| poison_unroll' $xs:ident*) =>
+  `(tactic|
+      ($[cases $xs:ident <;> simp [simp_iN]];*);
+    )
+
 namespace Rewrite
 
 attribute [refl] Rewrite.refl
@@ -302,52 +335,5 @@ theorem pBind_const_bitvec {n m} (x : iN n) (v : BitVec m) :
     pBind x (fun _ => bitvec v) = if x = poison then poison else bitvec v := by
 
   unfold pBind; grind
-
-end iN
-
-
-namespace iN
-
-@[simp]
-theorem pBind_rewrite_left {n m} (x : iN n) (f : BitVec n → iN m) (z : iN m) :
-    (pBind x f ~> z) ↔ match x with
-      | bitvec a => f a ~> z
-      | poison => True := by
-  cases x <;> simp
-
-@[simp]
-theorem rewrite_pBind_right {n m} (z : iN n) (x : iN m) (f : BitVec m → iN n) :
-    (z ~> pBind x f) ↔ match x with
-      | bitvec a => z ~> f a
-      | poison => z = poison := by
-  cases x <;> simp
-
-@[simp high, grind]
-theorem pBind_rewrite_pBind_same {n m} (x : iN n) (f g : BitVec n → iN m) :
-    (pBind x f ~> pBind x g) ↔ match x with
-      | bitvec a => f a ~> g a
-      | poison => True := by
-  cases x <;> simp
-
-@[simp]
-theorem pBind₂_rewrite_left {n m k} (x : iN n) (y : iN m) (f : BitVec n → BitVec m → iN k) (z : iN k) :
-    (pBind₂ x y f ~> z) ↔ match x, y with
-      | bitvec a, bitvec b => f a b ~> z
-      | _, _ => True := by
-  cases x <;> cases y <;> simp
-
-@[simp]
-theorem rewrite_pBind₂_right {n m k} (z : iN k) (x : iN n) (y : iN m) (f : BitVec n → BitVec m → iN k) :
-    (z ~> pBind₂ x y f) ↔ match x, y with
-      | bitvec a, bitvec b => z ~> f a b
-      | _, _ => z = poison := by
-  cases x <;> cases y <;> simp
-
-@[simp high, grind]
-theorem pBind₂_rewrite_pBind₂_same {n m k} (x : iN n) (y : iN m) (f g : BitVec n → BitVec m → iN k) :
-    (pBind₂ x y f ~> pBind₂ x y g) ↔ match x, y with
-      | bitvec a, bitvec b => f a b ~> g a b
-      | _, _ => True := by
-  cases x <;> cases y <;> simp
 
 end iN
