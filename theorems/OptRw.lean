@@ -98,6 +98,8 @@ def orewriteDo (mvarId : MVarId) (e : Expr)
 
 /-
 see the code for grewrite in Mathlib, the code for rewrite is hard to read and uses builtin stuff
+
+TODO this is kinda terrible and won't handle multiple goals, oh well! ill probably fix this later
 -/
 
 /- orw [ ... ] at h -/
