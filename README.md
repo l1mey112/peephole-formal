@@ -22,6 +22,11 @@ The goal is to build up a decent theory inside Lean, that is amenable to manual 
 >
 > 1. [stream #1765922400](https://l-m.dev/stream/1765922400) | [[VOD] PEEP 1 - verification of peephole optimisations in lean](https://www.youtube.com/watch?v=IcyFhrWyzdg)
 > 2. [stream #1766095200](https://l-m.dev/stream/1766095200) | [[VOD] PEEP 2 - proof of addNsw_assoc (add nsw LLVM instruction)](https://www.youtube.com/watch?v=lY1GF-8sdsA)
+> 3. [stream #1766527200](https://l-m.dev/stream/1766527200) | [[VOD] PEEP 3 - proof automation, realising why it won't work in general](https://www.youtube.com/watch?v=2rChq0gwhxo)
+> 4. [stream #1766700000](https://l-m.dev/stream/1766700000) | [ [VOD] PEEP 4 - stumbling around [[ denotational ]] : semantics](https://www.youtube.com/watch?v=9EN1jA2Q57c)
+> 5. [stream #1767132000](https://l-m.dev/stream/1767132000) | [  [VOD] PEEP 5 - reification and denoting of expressions](https://www.youtube.com/watch?v=Ag0aRR65YgM)
+> 6. [stream #1767304800](https://l-m.dev/stream/1767304800) | [  [VOD] PEEP 5 - reification and denoting of expressions](https://www.youtube.com/watch?v=Ag0aRR65YgM)
+
 
 # basic semantics
 
