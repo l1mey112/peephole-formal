@@ -65,12 +65,12 @@ theorem poison_rewrite {n} (x : iN n)
 /--
 `rewrite_trivial` tries to solve goal of the form `x ~> x` or `poison ~> x`.
 -/
-syntax "rewite_trivial" : tactic
+syntax "rewrite_trivial" : tactic
 
 macro_rules | `(tactic| trivial) => `(tactic| apply Rewrite.poison_rewrite)
 
-macro_rules | `(tactic| rewite_trivial) => `(tactic| try (with_reducible rfl))
-macro_rules | `(tactic| rewite_trivial) => `(tactic| apply Rewrite.poison_rewrite)
+macro_rules | `(tactic| rewrite_trivial) => `(tactic| try (with_reducible rfl))
+macro_rules | `(tactic| rewrite_trivial) => `(tactic| apply Rewrite.poison_rewrite)
 
 /-- Values cannot be rewritten to poison. -/
 @[simp, grind! .]

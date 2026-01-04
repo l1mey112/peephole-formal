@@ -98,37 +98,37 @@ theorem add_assoc {x y z : iN n} : (x + y) + z = x + (y + z) := by
 theorem addNsw_assoc_left_refine
   : x +nsw (y +nsw z) ~> (x + y) + z := by
 
-  repeat opt_rw addNsw_refine
+  orw [addNsw_refine, addNsw_refine]
   rw [add_assoc]
 
 theorem addNsw_assoc_right_refine
   : (x +nsw y) +nsw z ~> x + (y + z) := by
 
-  repeat opt_rw addNsw_refine
+  orw [addNsw_refine, addNsw_refine]
   rw [add_assoc]
 
 theorem addNuw_assoc_left_refine
   : x +nuw (y +nuw z) ~> (x + y) + z := by
 
-  repeat opt_rw addNuw_refine
+  orw [addNuw_refine, addNuw_refine]
   rw [add_assoc]
 
 theorem addNuw_assoc_right_refine
   : (x +nuw y) +nuw z ~> x + (y + z) := by
 
-  repeat opt_rw addNuw_refine
+  orw [addNuw_refine, addNuw_refine]
   rw [add_assoc]
 
 theorem addNw_assoc_left_refine
   : x +nw (y +nw z) ~> (x + y) + z := by
 
-  repeat opt_rw addNw_refine
+  orw [addNw_refine, addNw_refine]
   rw [add_assoc]
 
 theorem addNw_assoc_right_refine
   : (x +nw y) +nw z ~> x + (y + z) := by
 
-  repeat opt_rw addNw_refine
+  orw [addNw_refine, addNw_refine]
   rw [add_assoc]
 
 /- # Basic Lemmas for Sub -/
@@ -261,37 +261,37 @@ theorem mul_assoc {x y z : iN n} : (x * y) * z = x * (y * z) := by
 theorem mulNsw_assoc_left_refine
   : x *nsw (y *nsw z) ~> (x * y) * z := by
 
-  repeat opt_rw mulNsw_refine
+  orw [mulNsw_refine, mulNsw_refine]
   rw [mul_assoc]
 
 theorem mulNsw_assoc_right_refine
   : (x *nsw y) *nsw z ~> x * (y * z) := by
 
-  repeat opt_rw mulNsw_refine
+  orw [mulNsw_refine, mulNsw_refine]
   rw [mul_assoc]
 
 theorem mulNuw_assoc_left_refine
   : x *nuw (y *nuw z) ~> (x * y) * z := by
 
-  repeat opt_rw mulNuw_refine
+  orw [mulNuw_refine, mulNuw_refine]
   rw [mul_assoc]
 
 theorem mulNuw_assoc_right_refine
   : (x *nuw y) *nuw z ~> x * (y * z) := by
 
-  repeat opt_rw mulNuw_refine
+  orw [mulNuw_refine, mulNuw_refine]
   rw [mul_assoc]
 
 theorem mulNw_assoc_left_refine
   : x *nw (y *nw z) ~> (x * y) * z := by
 
-  repeat opt_rw mulNw_refine
+  orw [mulNw_refine, mulNw_refine]
   rw [mul_assoc]
 
 theorem mulNw_assoc_right_refine
   : (x *nw y) *nw z ~> x * (y * z) := by
 
-  repeat opt_rw mulNw_refine
+  orw [mulNw_refine, mulNw_refine]
   rw [mul_assoc]
 
 /- # Basic Lemmas for Div -/

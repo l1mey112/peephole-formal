@@ -2,7 +2,7 @@ import Lean
 import theorems.iN.iN_def
 import theorems.iN.iN_rewrite
 
-open Lean Elab Tactic Meta
+open Lean Meta Elab Parser Tactic
 
 /-- Proves `f poison = poison`, for `f (poison : iN n) = (poison : iN n')`. -/
 def proveCongruence (motive : Expr) (n n' : Expr) : MetaM Expr := do
@@ -22,37 +22,24 @@ def proveCongruence (motive : Expr) (n n' : Expr) : MetaM Expr := do
   let (result?, _) ← simpGoal proofMVar.mvarId! ctx
 
   if let some _ := result? then
-    /- throwTactic `opt_rewrite x
+    /- throwTactic `orewrite x
       m!"unable to prove congruence goal `motive poison = poison` automatically with `simp [simp_iN]`" -/
     throwError m!"unable to prove congruence goal `motive poison = poison` automatically with `simp [simp_iN]`{indentD motive}"
 
   instantiateMVars proofMVar
 
-/--
-On a goal of `lhs ~> rhs`, apply a rewrite of the form `x ~> y`.
--/
-syntax (name := optRewrite) "opt_rewrite" term : tactic
+def orewriteDo (mvarId : MVarId) (e : Expr)
+    (heq : Expr) (symm : Bool) : MetaM MVarId := mvarId.withContext do
 
-/--
-On a goal of `lhs ~> rhs`, apply a rewrite of the form `x ~> y`.
-`opt_rw` is like `opt_rewrite` but also tries to close the goal with reducible `rfl`
-and `apply Rewrite.poison_rewrite` to close goals of `poison ~> y`.
--/
-syntax (name := optRw) "opt_rw" term : tactic
-
-elab "opt_rewrite" t:term : tactic => withMainContext do
-  let mvarId ← getMainGoal
-  mvarId.checkNotAssigned `opt_rewrite
-
-  let matchRewrite (e : Expr) : MetaM (Expr × Expr × Expr) := do
+  mvarId.checkNotAssigned `orewrite
+  let matchRewrite (e : Expr) (symm : Bool) : MetaM (Expr × Expr × Expr) := do
     match_expr e with
-    | Rewrite n lhs rhs => return (n, lhs, rhs)
-    | _ => throwTacticEx `opt_rewrite mvarId m!"not a rewrite{indentExpr e}"
+    | Rewrite n lhs rhs =>
+      if symm then
+        throwError m!"Invalid orewrite argument: Rewrite relation is not symmetric{indentExpr e}"
 
-  let heq ← Term.withoutErrToSorry do
-    elabTerm t none true
-  if heq.hasSyntheticSorry then
-    throwAbortTactic
+      return (n, lhs, rhs)
+    | _ => throwError m!"Invalid orewrite argument: Expected an equality or rewrite, got type{indentExpr e}"
 
   let heqType ← instantiateMVars (← inferType heq)
   let (newMVars, _, heqType) ← forallMetaTelescopeReducing heqType
@@ -60,17 +47,19 @@ elab "opt_rewrite" t:term : tactic => withMainContext do
   let heq := mkAppN heq newMVars
 
   let occs : Occurrences := .all
-  let e ← getMainTarget
   let e ← instantiateMVars e
 
-  let (n', lhs, rhs) ← matchRewrite e
-  let (n, x, y) ← matchRewrite heqType
+  let (n', lhs, rhs) ← matchRewrite e symm
+  let (n, x, y) ← match (← matchEq? heqType) with
+    | some _ =>
+      throwError m!"equality unsupported at the moment"
+    | none => matchRewrite heqType symm
 
   -- h: x ~> y
   -- ⊢ lhs ~> rhs
   let lhsAbst ← kabstract lhs x occs
   unless lhsAbst.hasLooseBVars do
-    throwTacticEx `opt_rewrite mvarId m!"did not find instance of the pattern in the target expression{indentExpr lhs}\n"
+    throwTacticEx `orewrite mvarId m!"did not find instance of the pattern in the target expression{indentExpr lhs}\n"
 
   let α := (Expr.app (.const `iN []) n)
   let motive := Lean.mkLambda `_a BinderInfo.default α lhsAbst
@@ -78,7 +67,7 @@ elab "opt_rewrite" t:term : tactic => withMainContext do
   try
     check motive
   catch ex =>
-    throwTacticEx `opt_rewrite mvarId m!"motive is not type correct:{indentD motive}\nError: {ex.toMessageData}"
+    throwTacticEx `orewrite mvarId m!"motive is not type correct:{indentD motive}\nError: {ex.toMessageData}"
 
   /- Rewrite (_ : iN n) ~> (_ : iN n') -/
   let motiveProof ← liftMetaM $ proveCongruence motive n n'
@@ -98,16 +87,62 @@ elab "opt_rewrite" t:term : tactic => withMainContext do
   mvarId.assign fullProof
 
   let newGoalId := newGoalMVar.mvarId!
-  let (n_new, unreducedLhs, rhs_new) ← matchRewrite (← newGoalId.getType)
+  let (n_new, unreducedLhs, rhs_new) ← matchRewrite (← newGoalId.getType) false
 
   /- Beta reduce the annoying motive. -/
   let reducedLhs ← Core.betaReduce unreducedLhs
   let finalGoalType := mkAppN (.const ``Rewrite []) #[n_new, reducedLhs, rhs_new]
   let finalGoalId ← newGoalId.change finalGoalType
 
-  replaceMainGoal [finalGoalId]
+  return finalGoalId
 
-/- TODO when the identifier doesn't exist, nothing happens. fix this -/
+/-
+see the code for grewrite in Mathlib, the code for rewrite is hard to read and uses builtin stuff
+-/
 
-macro "opt_rw " t:term : tactic =>
-  `(tactic| (opt_rewrite $t; try rewite_trivial))
+/- orw [ ... ] at h -/
+def optRewriteLocalDecl (stx : Syntax) (symm : Bool) (fvarId : FVarId) : TacticM Unit := withMainContext do
+  _ := stx
+  _ := symm
+  _ := fvarId
+  throwError m!"rewriting at the context not implemented yet"
+
+/- orw [ ... ] at ⊢ -/
+def optRewriteTarget (stx : Syntax) (symm : Bool) : TacticM Unit := withMainContext do
+  let goal ← getMainGoal
+  Term.withSynthesize <| goal.withContext do
+    let heq ← elabTerm stx none true
+    if heq.hasSyntheticSorry then
+      throwAbortTactic
+
+    let goal ← getMainGoal
+    let e ← getMainTarget
+    let e ← instantiateMVars e
+
+    let r ← orewriteDo goal e heq symm
+    replaceMainGoal [r]
+
+/--
+On a goal of `lhs ~> rhs`, apply a rewrite of the form `x ~> y`.
+-/
+syntax (name := optRewrite) "orewrite" rwRuleSeq (location)? : tactic
+
+@[tactic optRewrite, inherit_doc optRewrite] def evalOptRewrite : Tactic := fun stx => do
+  let loc := expandOptLocation stx[2]
+  withRWRulesSeq stx[0] stx[1] fun symm term => do
+    withLocation loc
+      (optRewriteLocalDecl term symm ·)
+      (optRewriteTarget term symm)
+      (throwTacticEx `orewrite · "did not find instance of the pattern in the current goal")
+
+/--
+On a goal of `lhs ~> rhs`, apply a rewrite of the form `x ~> y`.
+`orw` is like `orewrite` but also tries to close the goal with reducible `rfl`
+and `apply Rewrite.poison_rewrite` to close goals of `poison ~> y`.
+-/
+macro (name := optRw) "orw " s:rwRuleSeq : tactic =>
+  match s with
+  | `(rwRuleSeq| [$rs,*]%$rbrak) =>
+    -- We show the `rfl` state on `]`
+    `(tactic| (orewrite [$rs,*]; with_annotate_state $rbrak (try rewrite_trivial)))
+  | _ => Macro.throwUnsupported

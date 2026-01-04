@@ -1,6 +1,6 @@
 import theorems.iN
 import theorems.Opt
-import theorems.ideal.AC
+--import theorems.ideal.AC
 
 def reassoc {idx} (ir : IR idx) : IR idx :=
   match ir with
@@ -52,7 +52,7 @@ def reassoc' : Rule :=
       . rename_i ih
         unfold IR.eval
 
-        opt_rw ih
+        orw [ih]
         rw [add_comm]
       . rename_i ih
 
@@ -62,7 +62,7 @@ def reassoc' : Rule :=
         conv => lhs; rw [add_assoc]; rhs; unfold IR.eval;
         conv => rhs; rhs; unfold IR.eval
 
-        opt_rw ih
+        orw [ih]
         rw [← bitvec_add_eq_bitvec_add_bitvec]
       . rename_i ihl ihr
 
@@ -72,8 +72,8 @@ def reassoc' : Rule :=
         conv => rhs; lhs; unfold IR.eval
         conv => lhs; lhs; lhs; unfold IR.eval
 
-        opt_rw ihl
-        opt_rw ihr
+        orw [ihl]
+        orw [ihr]
 
         rw [add_assoc]
         rw [add_comm]
@@ -82,8 +82,8 @@ def reassoc' : Rule :=
       . rename_i ihl ihr
         unfold IR.eval
 
-        opt_rw ihl
-        opt_rw ihr
+        orw [ihl]
+        orw [ihr]
   }
 
 theorem example_comm {n} {x : iN n}
