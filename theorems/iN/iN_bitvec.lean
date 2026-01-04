@@ -74,50 +74,53 @@ theorem BitVec.usubOverflow_zero {n} (x : BitVec n)
   rw [decide_eq_false]
   simp
 
+attribute [simp] BitVec.toInt_lt BitVec.le_toInt BitVec.isLt
 
-/- theorem BitVec.smulOverflow_one'0 (x : BitVec 0)
-    : x.smulOverflow 0 = false := by bv_decide
-
-theorem BitVec.smulOverflow_one'1 (x : BitVec 1)
-    : x.smulOverflow 1#1 = false := by bv_decide
-
-theorem BitVec.smulOverflow_one'2 (x : BitVec 2)
-    : x.smulOverflow 1#2 = false := by bv_decide
-
-theorem BitVec.smulOverflow_one'16 (x : BitVec 16)
-    : x.smulOverflow 1#16 = false := by bv_decide
-
-theorem BitVec.smulOverflow_one'32 (x : BitVec 32)
-    : x.smulOverflow 1#32 = false := by bv_decide -/
-
-/- @[simp]
-theorem BitVec.smulOverflow_one {n} (x : BitVec n)
+@[simp]
+theorem BitVec.smulOverflow_one {n} (hn : n ≥ 2) (x : BitVec n)
     : x.smulOverflow 1#n = false := by
 
-  unfold BitVec.smulOverflow
-  by_cases h : n = 0
-  . subst h; simp
-
-  by_cases h : n = 1
-  . subst h; simp;
-    by_cases h : x = 0#1
-    . subst h; simp;
-    . have h2 : x = 1#1 := by
-        bv_omega
-
-      subst h2
-
-  have : x.toInt * (1#n).toInt = x.toInt := by
-
-    rw [BitVec.toInt_one]
-
+  have h : x.toInt * (1#n).toInt = x.toInt := by
+    rw [BitVec.toInt_one (show 1 < n by exact Nat.lt_of_succ_le hn)]
     exact Int.mul_one x.toInt
 
-    simp [h]
+  simp [BitVec.smulOverflow, h]
 
+@[simp]
+theorem BitVec.umulOverflow_one {n} (x : BitVec n)
+    : x.umulOverflow 1#n = false := by
 
-  --simp only [Bool.false_or, decide_eq_false_iff_not, Int.not_lt]
+  simp [BitVec.umulOverflow]
+  by_cases hn : n = 0
+  . subst hn; simp
 
+  have h: 1 % 2 ^ n = 1 := by
+    exact Nat.one_mod_two_pow_eq_one.mpr (show n > 0 from Nat.pos_of_ne_zero hn)
 
+  simp [h]
 
-  simp [] -/
+theorem BitVec.one_eq_neg_one {n}
+    (h : 1#n = -1#n)
+    : n = 0 ∨ n = 1 := by
+
+  by_cases hb0 : n = 0
+  . subst hb0; trivial
+
+  by_cases hb1 : n = 1
+  . subst hb1; trivial
+
+  have : (1#n).msb = (-1#n).msb := by
+    rw [← h]
+
+  /- 1#n is not zero or intMin -/
+  have neqIntMin : 1#n ≠ BitVec.intMin n := by grind
+  have neqZero : 1#n ≠ 0#n := by grind
+
+  /- hence we can show that their msb's are different -/
+  have m1 : (1#n).msb = false := by simp [BitVec.msb, hb0]; omega
+  have m2 : (-1#n).msb = true := by
+    rw [BitVec.msb_neg_of_ne_intMin_of_ne_zero neqIntMin neqZero]
+    simp [hb1]
+
+  rw [m1, m2] at this
+  contradiction
