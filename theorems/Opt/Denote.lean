@@ -54,12 +54,12 @@ partial def denoteIRExpr {idx} (ir : IR idx) : M (DenotedIR idx) := do
     have : $lhs =Q $bodyQ := .unsafeIntro
     return ⟨bodyQ, irExpr, pure q(rfl : $lhs = $bodyQ)⟩
 
-  | .add lhsIR rhsIR => denoteBinop lhsIR rhsIR ``IR.add ``iN.add ``add_congr
-  | .addNsw lhsIR rhsIR => denoteBinop lhsIR rhsIR ``IR.addNsw ``iN.addNsw ``addNsw_congr
+  | .add lhsIR rhsIR => denoteBinop lhsIR rhsIR ``IR.add ``HAdd.hAdd true ``add_congr
+  | .addNsw lhsIR rhsIR => denoteBinop lhsIR rhsIR ``IR.addNsw ``iN.addNsw false ``addNsw_congr
 
   --| _ => throwError "unreachable"
 where
-  denoteBinop (lhsIR rhsIR : IR idx) (consName : Name) (instName : Name) (congrLemma : Name)
+  denoteBinop (lhsIR rhsIR : IR idx) (consName : Name) (instName : Name) (isHinst : Bool) (congrLemma : Name)
     : M (DenotedIR idx) := do
 
   let ⟨ξQ, σQ, _, _, _⟩ ← read
@@ -70,8 +70,12 @@ where
 
   have idxQ : Q(Nat) := toExpr idx
   have congrLemmaQ := mkConst congrLemma
-  have instQ := mkApp (mkConst instName) nQ
   have consQ := mkApp (mkConst consName) idxQ
+
+  have instQ := ← if isHinst then
+      mkAppOptM instName #[q(iN $nQ), q(iN $nQ), q(iN $nQ), none]
+    else
+      pure $ mkApp (mkConst instName) nQ
 
   let lhs ← denoteIRExpr lhsIR
   let rhs ← denoteIRExpr rhsIR

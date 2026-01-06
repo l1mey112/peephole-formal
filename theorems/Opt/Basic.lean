@@ -46,8 +46,8 @@ def eval (ξ : WidthAssignment) (σ : Assignment) : IR idx → iN (ξ.get idx)
   | .const val => iN.bitvec val
   | .poison => iN.poison
 
-  | .add lhs rhs => iN.add (eval ξ σ lhs) (eval ξ σ rhs)
-  | .addNsw lhs rhs => iN.addNsw (eval ξ σ lhs) (eval ξ σ rhs)
+  | .add lhs rhs => (eval ξ σ lhs) + (eval ξ σ rhs)
+  | .addNsw lhs rhs => (eval ξ σ lhs) +nsw (eval ξ σ rhs)
 
   /- | add lhs rhs => iN.add (eval σ lhs) (eval σ rhs)
   | addNsw lhs rhs => iN.addNsw (eval σ lhs) (eval σ rhs)

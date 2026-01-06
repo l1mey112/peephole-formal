@@ -51,7 +51,7 @@ partial def reifyIRExpr (idx : Nat) (body : Expr) : M (ReifiedIR idx) := do
     return ⟨ir, toExpr ir, body, pure q(rfl : $lhs = $bodyQ)⟩
 
   | iN.addNsw _ lhsExpr rhsExpr => reifyBinop lhsExpr rhsExpr IR.addNsw ``IR.addNsw ``addNsw_congr
-  | iN.add _ lhsExpr rhsExpr => reifyBinop lhsExpr rhsExpr IR.add ``IR.add ``add_congr
+  | HAdd.hAdd _ _ _ _ lhsExpr rhsExpr => reifyBinop lhsExpr rhsExpr IR.add ``IR.add ``add_congr
 
   | _ =>
     if let some fvarid := body.fvarId? then

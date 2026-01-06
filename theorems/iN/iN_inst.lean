@@ -37,10 +37,10 @@ llvm_bitwise
   ashr            >>ₛ
   ashrExact       >>ₛexact
 
-  and             &
-  or              |
-  not             ~
-  xor             ^
+  and             &&&
+  or              |||
+  not             ~~~
+  xor             ^^^
 
 llvm_cmp
 
