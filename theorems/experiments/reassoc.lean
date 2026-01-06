@@ -1,6 +1,9 @@
 import theorems.iN
 import theorems.Opt
---import theorems.ideal.AC
+import theorems.Core.Basic
+
+import Qq
+open Qq
 
 def reassoc {idx} (ir : IR idx) : IR idx :=
   match ir with
@@ -33,14 +36,26 @@ theorem eval_add_comm {idx} (ξ) (σ) (lhs rhs : IR idx)
   unfold IR.eval
   rw [add_comm]
 
+@[simp]
+theorem eval_add {idx} (ξ) (σ) (lhs rhs : IR idx)
+  : IR.eval ξ σ (IR.add lhs rhs : IR idx) = IR.eval ξ σ lhs + IR.eval ξ σ rhs := by
 
-/- bitvec (a + b) = bitvec a + bitvec b -/
+  conv => lhs; unfold IR.eval
 
-theorem bitvec_add_eq_bitvec_add_bitvec {n}
-  (a b : Nat)
-  : @bitvec n ↑(a + b) = bitvec a + bitvec b := by
+@[simp]
+theorem eval_const {idx} (ξ) (σ) (con : Nat)
+  : IR.eval ξ σ (IR.const con : IR idx) = ⟦con⟧ := by
+
+  conv => lhs; unfold IR.eval
+
+@[simp high]
+theorem bitvec_add_eq_add {n}
+    (a b : Nat)
+    : ⟦↑(a + b) : n⟧ = ⟦a⟧ + ⟦b⟧ := by
 
   simp [simp_iN, BitVec.ofNat_add]
+
+attribute [-simp] BitVec.natCast_eq_ofNat
 
 def reassoc' : Rule :=
   { impl := reassoc
@@ -50,40 +65,25 @@ def reassoc' : Rule :=
 
       fun_induction reassoc <;> try rfl
       . rename_i ih
-        unfold IR.eval
+        simp; orw [ih]
 
-        orw [ih]
         rw [add_comm]
+
       . rename_i ih
+        simp; orw [ih]
 
-        unfold IR.eval
-        conv => lhs; lhs; unfold IR.eval
+        conv => rhs; rw [← add_assoc]
         conv => lhs; lhs; rw [add_comm]
-        conv => lhs; rw [add_assoc]; rhs; unfold IR.eval;
-        conv => rhs; rhs; unfold IR.eval
 
-        orw [ih]
-        rw [← bitvec_add_eq_bitvec_add_bitvec]
       . rename_i ihl ihr
-
-        unfold IR.eval
-        conv => lhs; lhs; unfold IR.eval
-        conv => rhs; rhs; unfold IR.eval
-        conv => rhs; lhs; unfold IR.eval
-        conv => lhs; lhs; lhs; unfold IR.eval
-
-        orw [ihl]
-        orw [ihr]
+        simp; orw [ihl, ihr]
 
         rw [add_assoc]
         rw [add_comm]
 
       . rw [eval_add_comm]
       . rename_i ihl ihr
-        unfold IR.eval
-
-        orw [ihl]
-        orw [ihr]
+        simp; orw [ihl, ihr]
   }
 
 theorem example_comm {n} {x : iN n}
