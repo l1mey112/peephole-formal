@@ -124,3 +124,7 @@ theorem BitVec.one_eq_neg_one {n}
 
   rw [m1, m2] at this
   contradiction
+
+@[simp]
+theorem bitvec_of_length_zero (a : BitVec 0) : ⟦a⟧ = ⟦0⟧ := by
+  simp [BitVec.of_length_zero]

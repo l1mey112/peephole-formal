@@ -23,3 +23,33 @@ import theorems.iN
 @[simp high] theorem not_poison_eq_poison : ~~~(poison : iN n) = poison := by rfl
 @[simp high] theorem xor_poison_eq_poison : (x : iN n) ^^^ (poison : iN n) = poison := by cases x <;> rfl
 @[simp high] theorem poison_xor_eq_poison : (poison : iN n) ^^^ (x : iN n) = poison := by cases x <;> rfl
+
+/- # Basic Lemmas for Shift -/
+
+theorem const_shl : ⟦a : n⟧ << ⟦b⟧ ~> ⟦a <<< b⟧ := by
+  by_cases h : n = 0
+  . subst h; simp [simp_iN]
+  . simp [simp_iN, h]
+
+
+
+/- theorem not_lt_width_shl_const_eq_poison (hn : n ≥ 1) {b : BitVec n}
+    /- (h : ¬b.toNat < n) -/
+    /- (h : LtWidth b) -/
+    : x << ⟦b⟧ = poison := by
+
+
+  have : ¬n = 0 := by grind
+  have : n ≤ b := by
+
+
+    refine BitVec.le_of_lt ?_
+
+    simp_all
+    rw [BitVec.toNat_lt]
+
+
+  simp_all [simp_iN]
+
+
+  sorry -/

@@ -10,6 +10,7 @@ def shl? {n} (a b : BitVec n) : iN n :=
   else if b >= n then
     poison
   else
+    /- bitvec (a <<< (b % n)) ------ TODO? -/
     bitvec (a <<< b)
 
 @[simp_iN]
