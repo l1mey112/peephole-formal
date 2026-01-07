@@ -103,11 +103,10 @@ theorem BitVec.one_eq_neg_one {n}
     (h : 1#n = -1#n)
     : n = 0 ∨ n = 1 := by
 
-  by_cases hb0 : n = 0
-  . subst hb0; trivial
+  by_cases hb : n = 0 ∨ n = 1
+  . assumption
 
-  by_cases hb1 : n = 1
-  . subst hb1; trivial
+  have hb : ¬n = 0 ∧ ¬n = 1 := by simp_all
 
   have : (1#n).msb = (-1#n).msb := by
     rw [← h]
@@ -117,10 +116,10 @@ theorem BitVec.one_eq_neg_one {n}
   have neqZero : 1#n ≠ 0#n := by grind
 
   /- hence we can show that their msb's are different -/
-  have m1 : (1#n).msb = false := by simp [BitVec.msb, hb0]; omega
+  have m1 : (1#n).msb = false := by simp [BitVec.msb, hb]; omega
   have m2 : (-1#n).msb = true := by
     rw [BitVec.msb_neg_of_ne_intMin_of_ne_zero neqIntMin neqZero]
-    simp [hb1]
+    simp [hb]
 
   rw [m1, m2] at this
   contradiction
